@@ -1,8 +1,13 @@
 name: daily
 
 on:
+  # The bulletin for day D is posted on the morning of D+1. GitHub delays scheduled runs under load and
+  # sometimes drops them, worst at the top of the hour, so three off-the-hour runs a day; a run with
+  # nothing new commits nothing and only refreshes the site.
   schedule:
-    - cron: "0 14 * * *"   # 17:00 Athens in summer, 16:00 in winter; the bulletin for day D is posted on the morning of D+1
+    - cron: "17 7 * * *"
+    - cron: "47 13 * * *"
+    - cron: "37 19 * * *"
   workflow_dispatch:
   push:
     branches: [main]

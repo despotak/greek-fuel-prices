@@ -61,18 +61,22 @@ def known(root):
 
 
 def parse_one(pdf, taken):
-    day, pages, _ = pb.extract(pdf, taken)
+    """(day, rows, notes) for one new bulletin."""
+    day, pages, date_note = pb.extract(pdf, taken)
+    if date_note == pb.UNDATED:
+        # The full-archive parser cross-checks an undated file against its neighbours; one new file
+        # at a time cannot, so it waits in missing_days.csv for a backfill.
+        raise ValueError("no date line in body")
     try:
         order = pb.header_order(pages[0])
-        rows, _ = pb.parse(day, pages, order)
-        return day, rows
     except pb.NoHeader:
         n = pb.width(pages)
-        for order in FALLBACK_LAYOUTS:
-            if len(order) == n:
-                rows, _ = pb.parse(day, pages, order)
-                return day, rows
-        raise
+        order = next((o for o in FALLBACK_LAYOUTS if len(o) == n), None)
+        if order is None:
+            raise
+        date_note = "; ".join(filter(None, [date_note, "no header, used the standard column order"]))
+    rows, name_note = pb.parse(day, pages, order)
+    return day, rows, [n for n in (date_note, name_note) if n]
 
 
 def main(root):
@@ -87,14 +91,15 @@ def main(root):
     # A mislabelled file may be filed under the day its body names, unless that day already has data
     # or its own file is about to be parsed in this run.
     taken = have | set(todo)
-    rows, failed = [], []
+    rows, failed, notes = [], [], []
     with tempfile.TemporaryDirectory() as tmp:
         for d in todo:
             pdf = pathlib.Path(tmp) / f"{d}.pdf"
             try:
                 pdf.write_bytes(fetch(SITE + listed[d]))
-                day, parsed = parse_one(pdf, taken)
+                day, parsed, day_notes = parse_one(pdf, taken)
                 rows += [[day.isoformat(), BY_LABEL[r[1]], *("" if v is None else v for v in r[2:])] for r in parsed]
+                notes += [[day.isoformat(), n] for n in day_notes]
                 print(f"  {d}: {len(parsed)} rows" + (f" (filed under {day})" if day.isoformat() != d else ""), file=sys.stderr)
             except (ValueError, KeyError, StopIteration, OSError) as exc:
                 reason = ("bulletin published as a scanned image or a notice, no readable prices"
@@ -109,6 +114,9 @@ def main(root):
     if failed:
         with open(root / "data" / "pump" / "missing_days.csv", "a", newline="", encoding="utf-8") as fh:
             csv.writer(fh, lineterminator="\n").writerows(failed)
+    if notes:
+        with open(root / "data" / "pump" / "day_notes.csv", "a", newline="", encoding="utf-8") as fh:
+            csv.writer(fh, lineterminator="\n").writerows(notes)
     print(f"appended {len({r[0] for r in rows})} days, recorded {len(failed)} failures", file=sys.stderr)
     return 0
 

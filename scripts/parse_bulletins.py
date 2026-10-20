@@ -39,7 +39,7 @@ HEADER_KEYS = {
     "super": re.compile(r"Super"),
     "diesel": re.compile(r"Κίνησης"),
     "autogas": re.compile(r"Autoga|Υγρα\wριο"),
-    "heating_oil": re.compile(r"Θ\wρμαν"),
+    "heating_oil": re.compile(r"Θ\wρμα"),  # some headers hyphenate it: "Θέρμα" / "νσης"
 }
 FUELS = list(HEADER_KEYS)
 CELL = re.compile(r"(?<!\S)(\d,\d{1,3}|-)(?!\S)")
@@ -70,6 +70,21 @@ class NoHeader(ValueError):
     pass
 
 
+class Undated(ValueError):
+    """The body names no day at all; only the filename does."""
+
+
+UNDATED = "no date line in the body, so filed under its filename's day"
+
+
+class Duplicate(ValueError):
+    """A mislabelled file whose real day has a file of its own."""
+
+    def __init__(self, msg, found):
+        super().__init__(msg)
+        self.found = found
+
+
 class WrongDate(ValueError):
     def __init__(self, found, day):
         super().__init__(f"body says {found}, filename says {day}")
@@ -83,7 +98,9 @@ def clean_lines(text):
 
 def check_date(text, day):
     """Confirm the bulletin is for `day`. Returns a note when only partly checkable."""
-    head = re.split(r"\n\s*ΝΟΜΟ\S\s", text, maxsplit=1)[0]
+    # The broken font map prints Σ as the unassigned code point U+03A2 (ΝΟΜΟ΢), which is no letter
+    # to a regex, so "΢επτεμβρίου" would match no month at all.
+    head = re.split(r"\n\s*ΝΟΜΟ\S\s", text, maxsplit=1)[0].replace("΢", "Σ")
     if m := DATE_WORDS.search(head):
         found = dt.date(int(m[3]), MONTHS[m[2]], int(m[1]))
     elif m := DATE_NUM.search(head):
@@ -97,7 +114,7 @@ def check_date(text, day):
             raise ValueError(f"garbled date line {m[0]!r} matches no month")
         found = dt.date(int(m[2]), max(scored)[1], int(m[1]))
     else:
-        raise ValueError("no date line in body")
+        raise Undated("no date line in body")
     if found != day:
         raise WrongDate(found, day)
 
@@ -173,8 +190,12 @@ def page_rows(lines):
             continue
         if name:
             rows.append((name[1], cells))
-        elif pending and cells and not ln[:cells[0][1] - len(cells[0][0])].strip():
+        elif pending and cells and not (rest := ln[:cells[0][1] - len(cells[0][0])].strip()):
             rows.append((pending, cells))
+        elif pending and cells and not any(ch.isdigit() for ch in rest):
+            # The label wrapped and its tail shares the line with the prices:
+            # "ΝΟΜΟΣ ΑΙΤΩΛΙΑΣ ΚΑΙ" / "ΑΚΑΡΝΑΝΙΑΣ   1,675  1,869 ..."
+            rows.append((f"{pending} {rest}", cells))
         pending = None if cells else pending
     return rows
 
@@ -205,9 +226,11 @@ def extract(pdf, taken):
         raise ValueError("no prices in the text layer (scanned image or notice)")
     try:
         note = check_date(text, day)
+    except Undated:
+        note = UNDATED  # the caller must cross-check the day before trusting it
     except WrongDate as exc:
         if exc.found in taken:
-            raise ValueError(f"{exc}; that day has its own file, skipping duplicate") from exc
+            raise Duplicate(f"{exc}; that day has its own file, skipping duplicate", exc.found) from exc
         day, note = exc.found, f"filed under {exc.found}: {exc}"
     return day, [list(clean_lines(p)) for p in text.split("\f")], note
 
@@ -259,7 +282,7 @@ def parse(day, pages, order):
             labels.append(None if name.startswith("ΠΑΝ") else re.sub(r"^ΝΟΜΟ\S\s+", "", name))
             out.append([day.isoformat(), None, *(values.get(f) for f in FUELS)])
 
-    if labels.count(None) != 1:
+    if labels.count(None) > 1:
         raise ValueError(f"{labels.count(None)} national rows")
     names, note = resolve_names([lb for lb in labels if lb is not None])
     it = iter(names)
@@ -267,16 +290,47 @@ def parse(day, pages, order):
         row[1] = NATIONAL if label is None else next(it)
     if "ΑΤΤΙΚΗΣ" not in names:
         raise ValueError("no Attica row")
+    if None not in labels:
+        # Some bulletins leave out the national weighted average. It is not rebuilt from the
+        # prefecture rows: the weights are not published, so that would invent a statistic.
+        note = "; ".join(filter(None, [note, NO_NATIONAL]))
     return out, note
 
 
+NO_NATIONAL = "the bulletin has no national average row"
+
+
+def check_undated(day, rows, parsed):
+    """Why an undated bulletin cannot be trusted under its filename's day, or None.
+
+    A file with no date line could be a copy of another day, mislabelled, and nothing in it
+    says so. Two guards: it must not repeat any other day's prices, and Attica diesel must
+    sit within 5 cents of the nearest parsed days on either side.
+    """
+    prices = [r[2:] for r in rows]
+    if twin := next((d for d, rs in parsed.items() if d != day and [r[2:] for r in rs] == prices), None):
+        return f"undated bulletin repeats the prices of {twin}"
+    col = 2 + FUELS.index("diesel")
+    attica = {d: next((r[col] for r in rs if r[1] == "ΑΤΤΙΚΗΣ"), None) for d, rs in parsed.items()}
+    here = attica[day]
+    for side in (-1, 1):
+        near = next((attica[d] for k in range(1, 4) if (d := day + dt.timedelta(side * k)) in attica and attica[d]), None)
+        if here and near and abs(here - near) > 0.05:
+            return f"undated bulletin's Attica diesel {here} is far from its neighbours' {near}"
+    return None
+
+
 def main(pdf_dir, out_csv):
-    failures, parsed, orders, headless = 0, {}, {}, []
+    failures, parsed, orders, headless, undated, duplicates = 0, {}, {}, [], [], []
     pdfs = sorted(pathlib.Path(pdf_dir).glob("*.pdf"))
     taken = {dt.date.fromisoformat(p.stem) for p in pdfs}
-    for pdf in pdfs:
+
+    def read(pdf, taken):
+        nonlocal failures
         try:
             day, pages, date_note = extract(pdf, taken)
+            if date_note == UNDATED:
+                undated.append(day)
             order = header_order(pages[0])
             parsed[day], name_note = parse(day, pages, order)
             orders[day] = order
@@ -285,9 +339,22 @@ def main(pdf_dir, out_csv):
                     print(f"NOTE {day}: {note}", file=sys.stderr)
         except NoHeader:
             headless.append((day, pages))
+        except Duplicate as exc:
+            duplicates.append((pdf, exc))
         except (ValueError, KeyError, StopIteration, subprocess.CalledProcessError) as exc:
             failures += 1
             print(f"FAIL {pdf.name}: {type(exc).__name__} {exc}", file=sys.stderr)
+
+    for pdf in pdfs:
+        read(pdf, taken)
+    # A mislabelled file still fills its real day when that day's own file could not be read
+    # (2020-02-02.pdf holds 2 August 2020, whose own file is a scanned image).
+    for pdf, exc in duplicates[:]:
+        if exc.found in parsed:
+            failures += 1
+            print(f"FAIL {pdf.name}: {type(exc).__name__} {exc}", file=sys.stderr)
+        else:
+            read(pdf, taken - {exc.found})
 
     for day, pages in headless:
         n = width(pages)
@@ -304,6 +371,12 @@ def main(pdf_dir, out_csv):
         except (ValueError, KeyError) as exc:
             failures += 1
             print(f"FAIL {day}: borrowed order from {donor}: {exc}", file=sys.stderr)
+
+    for day in undated:
+        if day in parsed and (why := check_undated(day, parsed[day], parsed)):
+            del parsed[day], orders[day]
+            failures += 1
+            print(f"FAIL {day}.pdf: ValueError {why}", file=sys.stderr)
 
     layouts = []
     with open(out_csv, "w", newline="", encoding="utf-8") as fh:

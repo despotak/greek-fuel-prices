@@ -175,6 +175,104 @@
       }
     },
     {
+      "name": "transcribed",
+      "path": "data/pump/transcribed.csv",
+      "profile": "tabular-data-resource",
+      "format": "csv",
+      "encoding": "utf-8",
+      "description": "Days no parser can read, typed in by hand from the bulletin's page image: twelve scanned bulletins of July-August 2020 and one with a broken text layout (27 March 2017). Each was checked against OCR, the neighbouring days, and the national average rebuilt from the prefecture prices; the rows also appear in the yearly pump files.",
+      "sources": [
+        {
+          "title": "Ministry of Development, Fuel Price Observatory: daily price bulletins per prefecture",
+          "path": "https://www.fuelprices.gr/deltia_dn.view"
+        }
+      ],
+      "schema": {
+        "fields": [
+          {
+            "name": "date",
+            "type": "date"
+          },
+          {
+            "name": "area_id",
+            "type": "string",
+            "description": "See areas.csv"
+          },
+          {
+            "name": "unleaded95",
+            "type": "number",
+            "description": "Unleaded 95 octane (Αμόλυβδη 95)"
+          },
+          {
+            "name": "unleaded100",
+            "type": "number",
+            "description": "Unleaded 100 octane (Αμόλυβδη 100)"
+          },
+          {
+            "name": "super",
+            "type": "number",
+            "description": "Super (until 2022; very few stations)"
+          },
+          {
+            "name": "diesel",
+            "type": "number",
+            "description": "Road diesel (Diesel κίνησης)"
+          },
+          {
+            "name": "autogas",
+            "type": "number",
+            "description": "Autogas, LPG (Υγραέριο κίνησης)"
+          },
+          {
+            "name": "heating_oil",
+            "type": "number",
+            "description": "Heating oil delivered to the home (Diesel θέρμανσης κατ' οίκον); 15 Oct to 30 Apr only"
+          }
+        ],
+        "missingValues": [
+          ""
+        ],
+        "foreignKeys": [
+          {
+            "fields": "area_id",
+            "reference": {
+              "resource": "areas",
+              "fields": "area_id"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "day_notes",
+      "path": "data/pump/day_notes.csv",
+      "profile": "tabular-data-resource",
+      "format": "csv",
+      "encoding": "utf-8",
+      "description": "Days whose data needed care to read, and how: a garbled font map aligned to the prefecture order, a column order borrowed from a neighbouring day, a mislabelled file filed under the day its body names, a bulletin without its national average (left blank, never rebuilt), or a bulletin with no date line accepted under its filename's day after cross-checks.",
+      "sources": [
+        {
+          "title": "Ministry of Development, Fuel Price Observatory: daily price bulletins per prefecture",
+          "path": "https://www.fuelprices.gr/deltia_dn.view"
+        }
+      ],
+      "schema": {
+        "fields": [
+          {
+            "name": "date",
+            "type": "date"
+          },
+          {
+            "name": "note",
+            "type": "string"
+          }
+        ],
+        "missingValues": [
+          ""
+        ]
+      }
+    },
+    {
       "name": "accepted_anomalies",
       "path": "data/pump/accepted_anomalies.csv",
       "profile": "tabular-data-resource",

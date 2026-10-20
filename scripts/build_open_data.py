@@ -76,18 +76,31 @@ def init(root, daily_csv, parse_log, pdf_dir):
     with open(daily_csv, encoding="utf-8") as fh:
         for r in csv.DictReader(fh):
             rows.append([r["date"], BY_LABEL[r["region"]], *(r[f] for f in FUELS)])
-    write_pump_years(root, rows)
+    # Days no parser can read (scanned images, a broken text layout), read by hand from the page
+    # image and kept as their own source so a rebuild from the archive keeps them.
+    hand = []
+    transcribed = root / "data" / "pump" / "transcribed.csv"
+    if transcribed.exists():
+        with open(transcribed, encoding="utf-8") as fh:
+            hand = [[r["date"], r["area_id"], *(r[f] for f in FUELS)] for r in csv.DictReader(fh)]
+    write_pump_years(root, rows + hand)
 
-    parsed = {r[0] for r in rows}
+    parsed = {r[0] for r in rows} | {r[0] for r in hand}
     fails = {}
+    notes = [[d, ("read by hand from the bulletin's page image (see transcribed.csv); checked against OCR, "
+                  "the neighbouring days and the published national average")] for d in sorted({r[0] for r in hand})]
     for line in pathlib.Path(parse_log).read_text(encoding="utf-8").splitlines():
+        if (n := re.match(r"NOTE (\d{4}-\d{2}-\d{2}): (.*)", line)) and n[1] in parsed:
+            notes += [[n[1], part] for part in n[2].split("; ")]
+            if moved := re.search(r"body says ([\d-]+), filename says ([\d-]+)", n[2]):
+                fails.setdefault(moved[2], "file for this day is a mislabelled copy of " + moved[1])
         m = re.match(r"FAIL (\d{4}-\d{2}-\d{2})(?:\.pdf)?: (?:\w+Error )?(.*)", line)
         if m:
             msg = m[2]
             if "no prices in the text layer" in msg:
                 reason = "bulletin published as a scanned image or a notice, no readable prices"
             elif "skipping duplicate" in msg:
-                reason = "file for this day is a mislabelled copy of " + re.search(r"body says (\S+)", msg)[1]
+                reason = "file for this day is a mislabelled copy of " + re.search(r"body says ([\d-]+)", msg)[1]
             else:
                 reason = "bulletin could not be read: " + msg
             fails[m[1]] = reason
@@ -102,6 +115,10 @@ def init(root, daily_csv, parse_log, pdf_dir):
         w = csv.writer(fh, lineterminator="\n")
         w.writerow(["date", "reason"])
         w.writerows(missing)
+    with open(root / "data" / "pump" / "day_notes.csv", "w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh, lineterminator="\n")
+        w.writerow(["date", "note"])
+        w.writerows(sorted(notes))
     print(f"pump: {len(rows)} rows over {len(parsed)} days; missing days: {len(missing)}", file=sys.stderr)
 
 

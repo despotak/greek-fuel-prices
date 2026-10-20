@@ -6,7 +6,8 @@
 Usage: uv run --script validate.py <root>
 
 New days are the days not in the last commit (git HEAD). On them:
-  every area is present; the national price lies between the cheapest and dearest area;
+  every prefecture is present (a missing national average only warns: some bulletins leave it out);
+  the national price lies between the cheapest and dearest area;
   FAIL if more than MAX_JUMPERS areas move more than MAX_STEP for the same fuel on the same day.
   Since 2017 that never happened (at most one area), while a column swap or a font-map relapse
   moves every area at once. Single-area jumps and national moves above NATIONAL_WARN are warnings:
@@ -72,7 +73,9 @@ def main(root):
     wide = {f: pump.pivot(index="date", columns="area_id", values=f).sort_index() for f in FUELS}
     for day in new_days:
         have = set(pump.loc[pump["date"] == day, "area_id"])
-        if have != expected:
+        if expected - have == {"national"} and have <= expected:
+            warnings.append(f"{day}: no national average (the bulletin leaves it out)")
+        elif have != expected:
             errors.append(f"{day}: areas missing {sorted(expected - have)[:5]} / unexpected {sorted(have - expected)[:5]}")
         for f, w in wide.items():
             row = w.loc[day]

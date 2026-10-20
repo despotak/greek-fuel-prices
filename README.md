@@ -16,7 +16,9 @@ All files are UTF-8 CSV, described in [`datapackage.json`](datapackage.json) ([F
 |---|---|
 | `data/areas.csv` | The 51 prefectures (νομοί) and the national average: `area_id`, Greek and English name, and the label as printed in the bulletins |
 | `data/pump/2017.csv` … | One row per area per day: `date, area_id, unleaded95, unleaded100, super, diesel, autogas, heating_oil`. EUR per litre **including 24% VAT**, the averages exactly as the bulletin prints them. One file per year. |
-| `data/pump/missing_days.csv` | Every day between the first and last bulletin without data, and why: never published, posted only as a scanned image or a notice, a mislabelled copy of another day, or unreadable |
+| `data/pump/missing_days.csv` | Every day between the first and last bulletin without data, and why: never published, a notice instead of prices, or a mislabelled copy of another day |
+| `data/pump/transcribed.csv` | Days no parser can read, typed in by hand from the bulletin's page image (twelve scanned bulletins of summer 2020, one broken layout in 2017), each checked against OCR, the neighbouring days and the national average rebuilt from the prefecture prices. The same rows are in the yearly files. |
+| `data/pump/day_notes.csv` | Days that needed care to read, and how: a garbled font map, a borrowed column order, a mislabelled file filed under the day its body names, a bulletin without its national average, a hand transcription |
 | `data/pump/accepted_anomalies.csv` | Days whose large price jumps were checked against the bulletin and accepted as published |
 | `data/refinery/refinery_prices.csv` | Daily ex-refinery prices of ELPE and Motor Oil per product; `basis` says what is included and the unit |
 | `data/international/ecb_eurusd.csv` | ECB euro reference rate (USD per EUR) |
@@ -26,12 +28,12 @@ All files are UTF-8 CSV, described in [`datapackage.json`](datapackage.json) ([F
 Notes on the pump data:
 - **Heating oil** is "Diesel Θέρμανσης Κατ' οίκον", delivered to the home. It is reported only **from 15 October to 30 April**, the season with reduced excise duty, so it is empty every summer.
 - **Super** was sold by a handful of stations by late 2021 (5 nationwide in November 2021). Its averages say little, and the bulletins stopped listing it in 2022.
-- **`national`** is the average the bulletin prints, weighted by each prefecture's sales.
+- **`national`** is the average the bulletin prints, weighted by each prefecture's sales (2019 volumes in recent bulletins). Five bulletins leave it out; it stays blank on those days rather than being rebuilt.
 - **Autogas** includes two known glitches in the source: the national price is printed as 1.123 on 8 and 10 August 2022, against about 0.98 on the days around them. The data keeps what the bulletin says.
 
 ## How it updates
 
-A GitHub Actions workflow runs every day at 14:00 UTC (`.github/workflows/daily.yml`):
+A GitHub Actions workflow runs three times a day, at 07:17, 13:47 and 19:37 UTC (`.github/workflows/daily.yml`). GitHub delays or drops scheduled runs when it is busy, so one is not enough; a run with nothing new commits nothing.
 
 1. **New bulletins.**
    - Lists every bulletin fuelprices.gr publishes and downloads the ones the data does not have yet.
@@ -40,7 +42,7 @@ A GitHub Actions workflow runs every day at 14:00 UTC (`.github/workflows/daily.
 2. **Refinery prices and the ECB rate** are refreshed into `data/`. **EIA prices** are downloaded for the model and the dashboard only (see below).
 3. **The model** is refitted on all history and writes the outlook.
 4. **Validation gates** stop a bad day from being published (`scripts/validate.py`):
-   - Every area is present on each new day.
+   - Every prefecture is present on each new day (a missing national average only warns: some bulletins leave it out).
    - Prices are in range.
    - The national price lies between the cheapest and dearest area.
    - The newest bulletin is recent, and files never shrink.
