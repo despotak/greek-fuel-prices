@@ -16,7 +16,8 @@ FUEL_DOC = {
 TYPES = {"date": "date", "month": "string", "day": "integer", "n_7": "integer", "n_14": "integer"}
 PUMP_SRC = {"title": "Ministry of Development, Fuel Price Observatory: daily price bulletins per prefecture", "path": "https://www.fuelprices.gr/deltia_dn.view"}
 REFINERY_SRC = [{"title": "Ministry price observatory, refinery prices (ELPE, Motor Oil)", "path": "https://oil.gge.gov.gr"},
-                {"title": "collected by greek-oil-refinery-prices (AGPL-3.0 code)", "path": "https://github.com/akosiaris/greek-oil-refinery-prices"}]
+                {"title": "read directly from the feed behind oil.gge.gov.gr (the last ten working days)", "path": "https://oil-be.tcloudapp.net/api/Posts/GetLastPosts"},
+                {"title": "history and backup: greek-oil-refinery-prices (AGPL-3.0 code)", "path": "https://github.com/akosiaris/greek-oil-refinery-prices"}]
 ECB_SRC = {"title": "European Central Bank, euro reference exchange rate (USD)", "path": "https://data.ecb.europa.eu/data/datasets/EXR"}
 EU_SRC = {"title": "European Commission, DG Energy, Weekly Oil Bulletin, price history (© European Union, CC BY 4.0)", "path": "https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en"}
 CC_BY = [{"name": "CC-BY-4.0", "path": "https://creativecommons.org/licenses/by/4.0/", "title": "Creative Commons Attribution 4.0"}]

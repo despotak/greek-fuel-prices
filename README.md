@@ -74,7 +74,7 @@ There is no open source of oil futures prices. Exchange settlements (CME/NYMEX, 
 ## Sources and terms
 
 - **Pump prices:** Ministry of Development, Fuel Price Observatory, [fuelprices.gr](https://www.fuelprices.gr/deltia_dn.view).
-- **Refinery prices:** the Ministry's price observatory at [oil.gge.gov.gr](https://oil.gge.gov.gr), as collected by [akosiaris/greek-oil-refinery-prices](https://github.com/akosiaris/greek-oil-refinery-prices) (whose code is AGPL-3.0).
+- **Refinery prices:** the Ministry's price observatory at [oil.gge.gov.gr](https://oil.gge.gov.gr), read from the feed that site uses (its last ten working days) on every run. The history before October 2026, and a backup when the feed is down, come from [akosiaris/greek-oil-refinery-prices](https://github.com/akosiaris/greek-oil-refinery-prices) (whose code is AGPL-3.0); both give identical rows for the days they share. `validate.py` warns when the newest refinery price is more than 5 days old, or the newest EU week more than 16.
 - **EUR/USD:** [European Central Bank](https://data.ecb.europa.eu/), reused with attribution.
 - **International prices and outlook:** [US Energy Information Administration](https://www.eia.gov/). EIA's daily spot prices come from Refinitiv (LSEG), so they are **downloaded when the dashboard is built and not republished** in `data/`.
 - **Derived data** (`data/model/`): CC BY 4.0. **Code:** MIT (see `LICENSE`).

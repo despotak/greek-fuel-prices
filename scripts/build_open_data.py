@@ -14,6 +14,7 @@ daily  refinery prices and the ECB rate -> data/ (committed);
 """
 import csv
 import datetime as dt
+import json
 import pathlib
 import re
 import sys
@@ -27,6 +28,8 @@ from areas import AREAS, BY_LABEL, FUELS, write_csv
 
 UA = {"User-Agent": "greek-fuel-prices (https://github.com/despotak/greek-fuel-prices)"}
 REFINERY_URL = "https://raw.githubusercontent.com/akosiaris/greek-oil-refinery-prices/main/fuels.csv"
+REFINERY_API = "https://oil-be.tcloudapp.net/api/Posts/GetLastPosts"  # the feed oil.gge.gov.gr itself reads
+REFINERY_VAT = 0.24  # on fuels since 1 June 2016
 ECB_URL = "https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?format=csvdata&startPeriod=2017-01-01"
 EIA_XLS = "https://www.eia.gov/dnav/pet/hist_xls/{}d.xls"
 EIA_SERIES = ["EER_EPD2DXL0_PF4_Y35NY_DPG", "EER_EPMRU_PF4_Y35NY_DPG", "EER_EPD2F_PF4_Y35NY_DPG",
@@ -129,20 +132,78 @@ def init(root, daily_csv, parse_log, pdf_dir):
     print(f"pump: {len(rows)} rows over {len(parsed)} days; missing days: {len(missing)}", file=sys.stderr)
 
 
-def refinery(root, tmp):
+REFINERY_COLUMNS = ["date", "category", "product", "elpe", "motor_oil", "mean", "mean_incl_vat", "unit", "basis"]
+
+
+def refinery_backup(tmp):
+    """The full history as collected by akosiaris/greek-oil-refinery-prices (twice a day)."""
     raw = pd.read_csv(get(REFINERY_URL, tmp / "refinery_raw.csv"))
     raw["date"] = raw["date"].str[:10]
-    today = dt.date.today().isoformat()
-    raw = raw[raw["date"] <= today].drop_duplicates(["date", "fuel"], keep="last")
-    out = pd.DataFrame({
+    raw = raw.drop_duplicates(["date", "fuel"], keep="last")
+    return pd.DataFrame({
         "date": raw["date"], "category": raw["category"], "product": raw["fuel"],
         "elpe": raw["elpePrice"], "motor_oil": raw["motoroilPrice"], "mean": raw["meanPrice"],
         "mean_incl_vat": raw["vatPrice"], "unit": raw["unit"], "basis": raw["notes"],
-    }).sort_values(["date", "product"])
+    })
+
+
+def refinery_direct(known):
+    """The ministry's own feed behind oil.gge.gov.gr: its last ten posts, in the same shape and with the
+    same arithmetic as akosiaris' file (mean of the two refineries to 3 decimals; 24% VAT on top where
+    the basis is "before VAT"). Category, unit and basis come from each product's latest row in `known`."""
+    req = urllib.request.Request(REFINERY_API, headers=UA)
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        feed = json.load(resp)
+    meta = known.sort_values("date").groupby("product").last()[["category", "unit", "basis"]]
+    rows = []
+    for post in feed["posts"]:
+        prices = {}
+        for d in feed["postDetails"]:
+            if d["iD_Post"] == post["id"]:
+                prices.setdefault(d["productName"], {})[d["vendorName"]] = d["value"]
+        for product, by_vendor in prices.items():
+            if product not in meta.index:
+                print(f"refinery feed: new product {product!r}, no category yet, skipped", file=sys.stderr)
+                continue
+            elpe, motor_oil = by_vendor.get("ΕΛ.ΠΕ."), by_vendor.get("Motor Oil")
+            found = [v for v in (elpe, motor_oil) if v]
+            mean = round(sum(found) / len(found), 3) if found else None
+            category, unit, basis = meta.loc[product]
+            vat = round(mean * (1 + REFINERY_VAT), 3) if mean is not None and "προ ΦΠΑ" in basis and "προ φόρων" not in basis else None
+            rows.append([post["postDate"][:10], category, product, elpe, motor_oil, mean, vat, unit, basis])
+    return pd.DataFrame(rows, columns=REFINERY_COLUMNS)
+
+
+def refinery(root, tmp):
+    """Refinery prices: the committed file, topped up from akosiaris' collection (the backup, and the
+    source of the history) and then from the ministry's feed directly (it wins where both have a day).
+    Either source can fail on its own; with both down the committed file stays as it is."""
     path = root / "data" / "refinery" / "refinery_prices.csv"
+    have = pd.read_csv(path, dtype={"date": str}) if path.exists() else pd.DataFrame(columns=REFINERY_COLUMNS)
+    parts, used = [have], []
+    try:
+        parts.append(refinery_backup(tmp))
+        used.append("akosiaris")
+    except (OSError, KeyError, ValueError) as exc:
+        print(f"refinery: backup collection unreachable: {exc}", file=sys.stderr)
+    try:
+        direct = refinery_direct(pd.concat(parts))
+        parts.append(direct)
+        used.append(f"ministry feed ({direct['date'].min()} .. {direct['date'].max()})")
+        if len(parts) == 3:
+            both = parts[1].merge(direct, on=["date", "product"], suffixes=("_a", "_d"))
+            off = both[(both["mean_a"] - both["mean_d"]).abs() > 0.0015]
+            if len(off):
+                print(f"refinery: feed and backup disagree on {len(off)} of {len(both)} shared rows", file=sys.stderr)
+    except (OSError, KeyError, ValueError, TypeError) as exc:
+        print(f"refinery: ministry feed unreachable: {exc}", file=sys.stderr)
+    today = dt.date.today().isoformat()
+    out = pd.concat(parts)
+    out = out[out["date"] <= today].drop_duplicates(["date", "product"], keep="last").sort_values(["date", "product"])
     path.parent.mkdir(parents=True, exist_ok=True)
-    out.to_csv(path, index=False, lineterminator="\n")
-    print(f"refinery: {len(out)} rows, {out['date'].min()} .. {out['date'].max()}", file=sys.stderr)
+    out[REFINERY_COLUMNS].to_csv(path, index=False, lineterminator="\n")
+    print(f"refinery: {len(out)} rows, {out['date'].min()} .. {out['date'].max()}, from {' + '.join(used) or 'nothing new'}",
+          file=sys.stderr)
 
 
 def ecb(root, tmp):

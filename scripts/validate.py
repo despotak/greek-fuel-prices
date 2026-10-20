@@ -17,6 +17,7 @@ On everything: prices in range, files never shrink, the newest bulletin is recen
 """
 import datetime as dt
 import io
+import os
 import pathlib
 import subprocess
 import sys
@@ -31,6 +32,9 @@ MAX_STEP = 0.15  # EUR/L between consecutive bulletins, per area
 MAX_JUMPERS = 5  # areas allowed above MAX_STEP on one day for one fuel
 NATIONAL_WARN = 0.10  # largest national step since 2017: 0.069 (heating oil, March 2022), autogas glitch aside
 STALE_WARN, STALE_FAIL = 4, 10
+# Refinery prices are posted every working day (a weekend in one post on Monday; Easter can add two
+# days); the EU bulletin weekly, for Monday, published later that week.
+REFINERY_STALE, EU_STALE = 5, 16
 EU_PAIRS = {"euro95": "unleaded95", "diesel": "diesel", "heating_oil": "heating_oil", "lpg": "autogas"}
 
 
@@ -123,9 +127,20 @@ def main(root):
                 if pd.notna(ours_v) and pd.notna(r["price_with_taxes"]) and abs(ours_v - r["price_with_taxes"]) > 0.02:
                     warnings.append(f"{r['date']} {ours}: EU bulletin says {r['price_with_taxes']}, our national is {ours_v}")
 
+    # Sources that refresh themselves can go quiet without failing: a stale file is the only symptom.
+    for rel, max_age in (("data/refinery/refinery_prices.csv", REFINERY_STALE), ("data/eu/weekly_oil_bulletin.csv", EU_STALE)):
+        p = root / rel
+        if p.exists():
+            newest = pd.read_csv(p, usecols=["date"], dtype=str)["date"].max()
+            age = (dt.date.today() - dt.date.fromisoformat(newest)).days
+            if age > max_age:
+                warnings.append(f"{rel}: newest data is {newest}, {age} days old; its sources may have stopped")
+
     print(f"validate: {len(pump)} pump rows, {pump['date'].nunique()} days, {len(new_days)} new ({', '.join(new_days[-5:])})", file=sys.stderr)
     for w in warnings:
         print(f"WARNING {w}", file=sys.stderr)
+        if os.environ.get("GITHUB_ACTIONS"):
+            print(f"::warning title=validate::{w}")  # shown on the run's summary page
     for e in errors:
         print(f"ERROR {e}", file=sys.stderr)
     return 1 if errors else 0

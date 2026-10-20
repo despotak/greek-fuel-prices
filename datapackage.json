@@ -424,7 +424,11 @@
           "path": "https://oil.gge.gov.gr"
         },
         {
-          "title": "collected by greek-oil-refinery-prices (AGPL-3.0 code)",
+          "title": "read directly from the feed behind oil.gge.gov.gr (the last ten working days)",
+          "path": "https://oil-be.tcloudapp.net/api/Posts/GetLastPosts"
+        },
+        {
+          "title": "history and backup: greek-oil-refinery-prices (AGPL-3.0 code)",
           "path": "https://github.com/akosiaris/greek-oil-refinery-prices"
         }
       ],
@@ -518,7 +522,11 @@
           "path": "https://oil.gge.gov.gr"
         },
         {
-          "title": "collected by greek-oil-refinery-prices (AGPL-3.0 code)",
+          "title": "read directly from the feed behind oil.gge.gov.gr (the last ten working days)",
+          "path": "https://oil-be.tcloudapp.net/api/Posts/GetLastPosts"
+        },
+        {
+          "title": "history and backup: greek-oil-refinery-prices (AGPL-3.0 code)",
           "path": "https://github.com/akosiaris/greek-oil-refinery-prices"
         }
       ],
@@ -622,7 +630,11 @@
           "path": "https://oil.gge.gov.gr"
         },
         {
-          "title": "collected by greek-oil-refinery-prices (AGPL-3.0 code)",
+          "title": "read directly from the feed behind oil.gge.gov.gr (the last ten working days)",
+          "path": "https://oil-be.tcloudapp.net/api/Posts/GetLastPosts"
+        },
+        {
+          "title": "history and backup: greek-oil-refinery-prices (AGPL-3.0 code)",
           "path": "https://github.com/akosiaris/greek-oil-refinery-prices"
         }
       ],
