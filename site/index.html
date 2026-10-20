@@ -35,6 +35,7 @@ window.DASH_PARAMS = { area: 'Αττική', fuel: 'heating_oil', range: 'all' }
   .fp-seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; }
   .fp-seg button { font: inherit; font-size: var(--cds-font-size-caption); padding: var(--cds-pad-xs) var(--cds-pad-sm); background: transparent; color: var(--color-fg-muted); border: 0; cursor: pointer; }
   .fp-seg button + button { border-left: 1px solid var(--color-border-line); }
+  @media (max-width: 520px) { .fp-seg button { padding-inline: 6px; } }
   .fp-seg button[aria-pressed="true"] { background: var(--color-panel); color: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
   .fp-seg button:focus-visible, .fp-select:focus-visible, .fp-legend button:focus-visible, .fp-sort:focus-visible, .fp-chart:focus-visible, .fp-tile:focus-visible, .fp-table tbody tr:focus-visible { outline: 2px solid var(--cds-chart-categorical-1); outline-offset: 2px; }
 
@@ -157,10 +158,14 @@ window.DASH_PARAMS = { area: 'Αττική', fuel: 'heating_oil', range: 'all' }
     <div class="fp-control">
       <span class="fp-label" id="lbl-range">Period</span>
       <div class="fp-seg" role="group" aria-labelledby="lbl-range" id="range-seg">
+        <button type="button" data-value="1w">1W</button>
         <button type="button" data-value="1m">1M</button>
         <button type="button" data-value="3m">3M</button>
+        <button type="button" data-value="ytd">YTD</button>
         <button type="button" data-value="1y">1Y</button>
         <button type="button" data-value="3y">3Y</button>
+        <button type="button" data-value="5y">5Y</button>
+        <button type="button" data-value="10y">10Y</button>
         <button type="button" data-value="all">All</button>
       </div>
     </div>
@@ -509,7 +514,23 @@ dash.calc('coverage', {
   const parseDay = (s) => new Date(s + 'T00:00:00Z');
   const DAY = 864e5;
   const GAP_DAYS = 3;
-  const RANGE_DAYS = { '1m': 30, '3m': 91, '1y': 365, '3y': 1096 };
+  const RANGE_DAYS = { '1w': 7, '1m': 30, '3m': 91, '1y': 365, '3y': 1096, '5y': 1826, '10y': 3653 };
+  const RANGES = new Set([...Object.keys(RANGE_DAYS), 'ytd', 'all']);
+  // First day a chart shows for a Period choice, never earlier than the data's own first day.
+  const rangeStart = (range, end, first) => {
+    if (range === 'all') return first;
+    const start = range === 'ytd' ? new Date(Date.UTC(end.getUTCFullYear(), 0, 1)) : new Date(end - RANGE_DAYS[range] * DAY);
+    return start < first ? first : start;
+  };
+  // Date ticks and their format for the span a chart shows; short spans tick on whole days.
+  const timeAxis = (x, plotWidth) => {
+    const [a, b] = x.domain();
+    const span = (b - a) / DAY;
+    const count = Math.max(2, Math.floor(plotWidth / 90));
+    const ticks = span <= 16 ? x.ticks(d3.utcDay.every(Math.max(1, Math.ceil(span / count)))) : x.ticks(count);
+    const fmt = span > 800 ? d3.utcFormat('%Y') : span > 120 ? d3.utcFormat('%b %Y') : d3.utcFormat('%-d %b');
+    return { ticks, fmt };
+  };
   const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'));
 
   const hidden = new Set(['super']);
@@ -518,7 +539,7 @@ dash.calc('coverage', {
 
   const params = () => {
     const p = dash.params();
-    return { area: p.area || 'Αττική', fuel: FUEL[p.fuel] ? p.fuel : 'heating_oil', range: RANGE_DAYS[p.range] || p.range === 'all' ? p.range || 'all' : 'all' };
+    return { area: p.area || 'Αττική', fuel: FUEL[p.fuel] ? p.fuel : 'heating_oil', range: RANGES.has(p.range) ? p.range : 'all' };
   };
 
   // ---- data -------------------------------------------------------------------
@@ -813,7 +834,7 @@ dash.calc('coverage', {
     if (st !== 'ok') { box.replaceChildren(); legend.replaceChildren(); if (st === 'error') message(box, 'fp-failed', 'Failed to load'); return; }
     const s = series(fuel);
     const end = series('diesel').days.at(-1);
-    const start = range === 'all' ? s.days[0] : new Date(end - RANGE_DAYS[range] * DAY);
+    const start = rangeStart(range, end, s.days[0]);
     const prefs = s.areas.filter((a) => a !== NATIONAL);
     const pts = [];
     for (let i = 0; i < s.days.length; i++) {
@@ -855,9 +876,9 @@ dash.calc('coverage', {
     const x = d3.scaleUtc([pts[0].date < start ? start : d3.min(pts, (p) => p.date), end], [left, width - right]);
     yAxis(svg, y, ticks, left, right, width);
     const span = (end - x.domain()[0]) / DAY;
-    const xFmt = span > 800 ? d3.utcFormat('%Y') : span > 120 ? d3.utcFormat('%b %Y') : d3.utcFormat('%-d %b');
-    svg.append('g').attr('class', 'fp-axis').selectAll('text').data(x.ticks(Math.max(2, Math.floor((width - left - right) / 90)))).join('text')
-      .attr('x', (t) => x(t)).attr('y', height - 6).attr('text-anchor', 'middle').text(xFmt);
+    const ax = timeAxis(x, width - left - right);
+    svg.append('g').attr('class', 'fp-axis').selectAll('text').data(ax.ticks).join('text')
+      .attr('x', (t) => x(t)).attr('y', height - 6).attr('text-anchor', 'middle').text(ax.fmt);
 
     const band = d3.area().defined((p) => p != null).x((p) => x(p.date)).y0((p) => y(p.lo)).y1((p) => y(p.hi));
     svg.append('path').attr('d', band(segment(pts))).style('fill', f.color).attr('fill-opacity', 0.14);
@@ -1024,7 +1045,7 @@ dash.calc('coverage', {
     box.classList.toggle('dash-skeleton', st === 'loading');
     if (st !== 'ok') { box.replaceChildren(); legend.replaceChildren(); if (st === 'error') message(box, 'fp-failed', 'Failed to load'); return; }
     const end = series('diesel').days.at(-1);
-    const start = range === 'all' ? series('diesel').days[0] : new Date(end - RANGE_DAYS[range] * DAY);
+    const start = rangeStart(range, end, series('diesel').days[0]);
     const lines = FUELS.map((f) => {
       const s = series(f.key);
       const col = s.col[area];
@@ -1073,9 +1094,9 @@ dash.calc('coverage', {
     const x = d3.scaleUtc([start, end], [left, width - right]);
     yAxis(svg, y, ticks, left, right, width);
     const span = (end - start) / DAY;
-    const xFmt = span > 800 ? d3.utcFormat('%Y') : span > 120 ? d3.utcFormat('%b %Y') : d3.utcFormat('%-d %b');
-    svg.append('g').attr('class', 'fp-axis').selectAll('text').data(x.ticks(Math.max(2, Math.floor((width - left - right) / 90)))).join('text')
-      .attr('x', (t) => x(t)).attr('y', height - 6).attr('text-anchor', 'middle').text(xFmt);
+    const ax = timeAxis(x, width - left - right);
+    svg.append('g').attr('class', 'fp-axis').selectAll('text').data(ax.ticks).join('text')
+      .attr('x', (t) => x(t)).attr('y', height - 6).attr('text-anchor', 'middle').text(ax.fmt);
 
     const line = d3.line().defined((p) => p != null).x((p) => x(p.date)).y((p) => y(p.v));
     svg.append('g').selectAll('path').data([...visible].reverse()).join('path')
@@ -1244,7 +1265,7 @@ dash.calc('coverage', {
     const ch = chainSeries();
     const s = series(fuel);
     const end = series('diesel').days.at(-1);
-    const start = range === 'all' ? ch.days[0] : new Date(end - RANGE_DAYS[range] * DAY);
+    const start = rangeStart(range, end, ch.days[0]);
     const pumpAt = new Map();
     const pc = s.col[area];
     for (let i = 0; pc && i < s.days.length; i++) if (!Number.isNaN(pc[i])) pumpAt.set(+s.days[i], pc[i]);
@@ -1277,9 +1298,9 @@ dash.calc('coverage', {
     const x = d3.scaleUtc([start, end], [left, width - right]);
     yAxis(svg, y, ticks, left, right, width);
     const span = (end - start) / DAY;
-    const xFmt = span > 800 ? d3.utcFormat('%Y') : span > 120 ? d3.utcFormat('%b %Y') : d3.utcFormat('%-d %b');
-    svg.append('g').attr('class', 'fp-axis').selectAll('text').data(x.ticks(Math.max(2, Math.floor((width - left - right) / 90)))).join('text')
-      .attr('x', (t) => x(t)).attr('y', height - 6).attr('text-anchor', 'middle').text(xFmt);
+    const ax = timeAxis(x, width - left - right);
+    svg.append('g').attr('class', 'fp-axis').selectAll('text').data(ax.ticks).join('text')
+      .attr('x', (t) => x(t)).attr('y', height - 6).attr('text-anchor', 'middle').text(ax.fmt);
     const line = d3.line().defined((p) => p != null).x((p) => x(p.date)).y((p) => y(p.v));
     svg.append('g').selectAll('path').data(lines).join('path')
       .attr('fill', 'none').attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round')
