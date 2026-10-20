@@ -1525,6 +1525,7 @@ dash.calc('coverage', {
   // The bulletin has no 100 octane or Super, so those show unleaded 95.
   const EU_FUEL = { unleaded95: 'euro95', unleaded100: 'euro95', super: 'euro95', diesel: 'diesel', heating_oil: 'heating_oil', autogas: 'lpg' };
   const EU_MIN_DAYS = 91; // weekly data: shorter periods would show one or two points
+  const euHidden = new Set();
   const drawEU = ({ fuel, range }) => {
     const box = document.getElementById('eu-chart');
     const legend = document.getElementById('eu-legend');
@@ -1553,7 +1554,7 @@ dash.calc('coverage', {
     const color = FUEL[shown].color;
     const faded = (c) => `color-mix(in srgb, ${c} 45%, transparent)`;
     const grey = 'var(--color-fg-secondary)';
-    const lines = [
+    const allLines = [
       { key: 'gr_without', name: 'Greece, before taxes', short: 'Greece', color, width: 2 },
       { key: 'eu_without', name: 'EU average, before taxes', short: 'EU', color: grey, width: 2 },
       { key: 'gr_with', name: 'Greece, with taxes', short: 'Greece, taxed', color: faded(color), width: 1.5 },
@@ -1563,7 +1564,26 @@ dash.calc('coverage', {
     ].map((l) => ({ ...l, pts: pts.map((p) => ({ date: p.date, v: p[l.key] })) }))
       .map((l) => ({ ...l, last: l.pts.findLast((p) => p.v != null) }))
       .filter((l) => l.last);
-    legendItems(legend, lines.map((l) => ({ color: l.color, text: l.name })));
+    legend.replaceChildren(...allLines.map((l) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(!euHidden.has(l.key)));
+      const k = document.createElement('span');
+      k.className = 'fp-key';
+      k.style.setProperty('--k', l.color);
+      b.append(k, document.createTextNode(l.name));
+      b.addEventListener('click', () => {
+        if (euHidden.has(l.key)) euHidden.delete(l.key); else euHidden.add(l.key);
+        drawEU(params());
+      });
+      return b;
+    }));
+    const lines = allLines.filter((l) => !euHidden.has(l.key));
+    if (!lines.length) {
+      box.querySelector('svg')?.remove();
+      message(box, 'fp-empty', 'Every line is hidden. Click one above to show it.');
+      return;
+    }
 
     const height = 280;
     const { svg, width } = newSvg(box, height);
