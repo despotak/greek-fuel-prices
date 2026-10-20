@@ -148,11 +148,11 @@ window.DASH_PARAMS = { area: 'Αττική', fuel: 'heating_oil', range: 'all' }
       <select class="fp-select" id="area-select" data-source="latest"></select></label>
     <label class="fp-control"><span class="fp-label">Fuel</span>
       <select class="fp-select" id="fuel-select">
-        <option value="heating_oil">Heating oil</option>
-        <option value="diesel">Diesel</option>
         <option value="unleaded95">Unleaded 95</option>
         <option value="unleaded100">Unleaded 100</option>
+        <option value="diesel">Diesel</option>
         <option value="autogas">Autogas (LPG)</option>
+        <option value="heating_oil">Heating oil</option>
         <option value="super">Super (until 2022)</option>
       </select></label>
     <div class="fp-control">
@@ -178,16 +178,6 @@ window.DASH_PARAMS = { area: 'Αττική', fuel: 'heating_oil', range: 'all' }
 
   <div class="fp-page" id="page-prices" role="tabpanel" aria-labelledby="tab-prices">
   <section class="fp-tiles" id="today" aria-label="Latest price of each fuel in the chosen area">
-    <button type="button" class="fp-tile" data-fuel="heating_oil" style="--k: var(--cds-chart-categorical-1)">
-      <span class="fp-tile-name"><span class="fp-key"></span>Heating oil, delivered</span>
-      <span class="fp-price"><span class="dash-skeleton" data-source="kpis" data-field="latest" data-kind="pump">—</span><span class="fp-unit">€/L</span></span>
-      <span class="fp-delta"><span class="dash-skeleton" data-source="kpis" data-field="change_pct" data-kind="delta">—</span> on a year ago</span>
-    </button>
-    <button type="button" class="fp-tile" data-fuel="diesel" style="--k: var(--cds-chart-categorical-2)">
-      <span class="fp-tile-name"><span class="fp-key"></span>Diesel</span>
-      <span class="fp-price"><span class="dash-skeleton" data-source="kpis" data-field="latest" data-kind="pump">—</span><span class="fp-unit">€/L</span></span>
-      <span class="fp-delta"><span class="dash-skeleton" data-source="kpis" data-field="change_pct" data-kind="delta">—</span> on a year ago</span>
-    </button>
     <button type="button" class="fp-tile" data-fuel="unleaded95" style="--k: var(--cds-chart-categorical-3)">
       <span class="fp-tile-name"><span class="fp-key"></span>Unleaded 95</span>
       <span class="fp-price"><span class="dash-skeleton" data-source="kpis" data-field="latest" data-kind="pump">—</span><span class="fp-unit">€/L</span></span>
@@ -198,8 +188,18 @@ window.DASH_PARAMS = { area: 'Αττική', fuel: 'heating_oil', range: 'all' }
       <span class="fp-price"><span class="dash-skeleton" data-source="kpis" data-field="latest" data-kind="pump">—</span><span class="fp-unit">€/L</span></span>
       <span class="fp-delta"><span class="dash-skeleton" data-source="kpis" data-field="change_pct" data-kind="delta">—</span> on a year ago</span>
     </button>
+    <button type="button" class="fp-tile" data-fuel="diesel" style="--k: var(--cds-chart-categorical-2)">
+      <span class="fp-tile-name"><span class="fp-key"></span>Diesel</span>
+      <span class="fp-price"><span class="dash-skeleton" data-source="kpis" data-field="latest" data-kind="pump">—</span><span class="fp-unit">€/L</span></span>
+      <span class="fp-delta"><span class="dash-skeleton" data-source="kpis" data-field="change_pct" data-kind="delta">—</span> on a year ago</span>
+    </button>
     <button type="button" class="fp-tile" data-fuel="autogas" style="--k: var(--cds-chart-categorical-5)">
       <span class="fp-tile-name"><span class="fp-key"></span>Autogas (LPG)</span>
+      <span class="fp-price"><span class="dash-skeleton" data-source="kpis" data-field="latest" data-kind="pump">—</span><span class="fp-unit">€/L</span></span>
+      <span class="fp-delta"><span class="dash-skeleton" data-source="kpis" data-field="change_pct" data-kind="delta">—</span> on a year ago</span>
+    </button>
+    <button type="button" class="fp-tile" data-fuel="heating_oil" style="--k: var(--cds-chart-categorical-1)">
+      <span class="fp-tile-name"><span class="fp-key"></span>Heating oil, delivered</span>
       <span class="fp-price"><span class="dash-skeleton" data-source="kpis" data-field="latest" data-kind="pump">—</span><span class="fp-unit">€/L</span></span>
       <span class="fp-delta"><span class="dash-skeleton" data-source="kpis" data-field="change_pct" data-kind="delta">—</span> on a year ago</span>
     </button>
@@ -239,11 +239,11 @@ window.DASH_PARAMS = { area: 'Αττική', fuel: 'heating_oil', range: 'all' }
       <table class="fp-table" id="pref-table" data-source="latest" data-row-key="area">
         <thead><tr>
           <th data-field="area" scope="col"><button type="button" class="fp-sort" data-col="area">Area</button></th>
-          <th data-field="heating_oil" scope="col"><button type="button" class="fp-sort" data-col="heating_oil">Heating oil</button></th>
-          <th data-field="diesel" scope="col"><button type="button" class="fp-sort" data-col="diesel">Diesel</button></th>
           <th data-field="unleaded95" scope="col"><button type="button" class="fp-sort" data-col="unleaded95">Unl. 95</button></th>
           <th data-field="unleaded100" scope="col"><button type="button" class="fp-sort" data-col="unleaded100">Unl. 100</button></th>
+          <th data-field="diesel" scope="col"><button type="button" class="fp-sort" data-col="diesel">Diesel</button></th>
           <th data-field="autogas" scope="col"><button type="button" class="fp-sort" data-col="autogas">Autogas</button></th>
+          <th data-field="heating_oil" scope="col"><button type="button" class="fp-sort" data-col="heating_oil">Heating oil</button></th>
         </tr></thead>
         <tbody></tbody>
       </table>
@@ -492,12 +492,13 @@ dash.calc('coverage', {
 
 <script>
 (() => {
+  // Display order. Each fuel keeps its own colour wherever it appears.
   const FUELS = [
-    { key: 'heating_oil', name: 'Heating oil', color: 'var(--cds-chart-categorical-1)' },
-    { key: 'diesel', name: 'Diesel', color: 'var(--cds-chart-categorical-2)' },
     { key: 'unleaded95', name: 'Unleaded 95', color: 'var(--cds-chart-categorical-3)' },
     { key: 'unleaded100', name: 'Unleaded 100', color: 'var(--cds-chart-categorical-4)' },
+    { key: 'diesel', name: 'Diesel', color: 'var(--cds-chart-categorical-2)' },
     { key: 'autogas', name: 'Autogas', color: 'var(--cds-chart-categorical-5)' },
+    { key: 'heating_oil', name: 'Heating oil', color: 'var(--cds-chart-categorical-1)' },
     { key: 'super', name: 'Super', color: 'var(--cds-chart-categorical-6)' },
   ];
   const FUEL = Object.fromEntries(FUELS.map((f) => [f.key, f]));
@@ -1173,7 +1174,7 @@ dash.calc('coverage', {
   const drawTable = ({ area, fuel }) => {
     const st = dash.data('latest');
     const body = table.querySelector('tbody');
-    const cols = ['heating_oil', 'diesel', 'unleaded95', 'unleaded100', 'autogas'];
+    const cols = ['unleaded95', 'unleaded100', 'diesel', 'autogas', 'heating_oil'];
     const col = sort.col || (cols.includes(fuel) ? fuel : 'heating_oil');
     const dir = sort.col ? sort.dir : 'ascending';
     for (const th of table.querySelectorAll('th')) th.setAttribute('aria-sort', th.dataset.field === col ? dir : 'none');
@@ -1203,7 +1204,7 @@ dash.calc('coverage', {
   };
 
   // ---- Outlook ---------------------------------------------------------------------------
-  const MODELLED = ['heating_oil', 'diesel', 'unleaded95', 'unleaded100'];
+  const MODELLED = ['unleaded95', 'unleaded100', 'diesel', 'heating_oil'];
   const fmtCents = loc.format('+.1f');
   const fmtErr = loc.format('.1f');
   const fmtShare = loc.format('.0%');
