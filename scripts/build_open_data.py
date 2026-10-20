@@ -87,8 +87,10 @@ def init(root, daily_csv, parse_log, pdf_dir):
 
     parsed = {r[0] for r in rows} | {r[0] for r in hand}
     fails = {}
-    notes = [[d, ("read by hand from the bulletin's page image (see transcribed.csv); checked against OCR, "
-                  "the neighbouring days and the published national average")] for d in sorted({r[0] for r in hand})]
+    notes = [[d, ("read by hand from the bulletin's page image (see transcribed.csv); checked against a machine "
+                  "reading of the page (OCR, or the PDF's own text layer for 2017-03-27), the neighbouring days, and "
+                  "the national average rebuilt from the prefecture prices for unleaded 95, 100 and diesel")]
+             for d in sorted({r[0] for r in hand})]
     for line in pathlib.Path(parse_log).read_text(encoding="utf-8").splitlines():
         if (n := re.match(r"NOTE (\d{4}-\d{2}-\d{2}): (.*)", line)) and n[1] in parsed:
             notes += [[n[1], part] for part in n[2].split("; ")]

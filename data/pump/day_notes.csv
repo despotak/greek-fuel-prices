@@ -1,5 +1,5 @@
 date,note
-2017-03-27,"read by hand from the bulletin's page image (see transcribed.csv); checked against OCR, the neighbouring days and the published national average"
+2017-03-27,"read by hand from the bulletin's page image (see transcribed.csv); checked against a machine reading of the page (OCR, or the PDF's own text layer for 2017-03-27), the neighbouring days, and the national average rebuilt from the prefecture prices for unleaded 95, 100 and diesel"
 2017-11-01,garbled names aligned (Σ>΢ Τ>Σ Υ>Τ)
 2017-11-02,garbled names aligned (Σ>΢ Τ>Σ Υ>Τ)
 2017-11-03,garbled names aligned (Σ>΢ Τ>Σ Υ>Τ)
@@ -478,20 +478,20 @@ date,note
 2020-07-26,garbled names aligned (Σ>΢ Τ>Σ Υ>Τ)
 2020-07-27,garbled names aligned (Σ>΢ Τ>Σ Υ>Τ)
 2020-07-28,garbled names aligned (Σ>΢ Τ>Σ Υ>Τ)
-2020-07-29,"read by hand from the bulletin's page image (see transcribed.csv); checked against OCR, the neighbouring days and the published national average"
-2020-07-30,"read by hand from the bulletin's page image (see transcribed.csv); checked against OCR, the neighbouring days and the published national average"
-2020-07-31,"read by hand from the bulletin's page image (see transcribed.csv); checked against OCR, the neighbouring days and the published national average"
-2020-08-01,"read by hand from the bulletin's page image (see transcribed.csv); checked against OCR, the neighbouring days and the published national average"
+2020-07-29,"read by hand from the bulletin's page image (see transcribed.csv); checked against a machine reading of the page (OCR, or the PDF's own text layer for 2017-03-27), the neighbouring days, and the national average rebuilt from the prefecture prices for unleaded 95, 100 and diesel"
+2020-07-30,"read by hand from the bulletin's page image (see transcribed.csv); checked against a machine reading of the page (OCR, or the PDF's own text layer for 2017-03-27), the neighbouring days, and the national average rebuilt from the prefecture prices for unleaded 95, 100 and diesel"
+2020-07-31,"read by hand from the bulletin's page image (see transcribed.csv); checked against a machine reading of the page (OCR, or the PDF's own text layer for 2017-03-27), the neighbouring days, and the national average rebuilt from the prefecture prices for unleaded 95, 100 and diesel"
+2020-08-01,"read by hand from the bulletin's page image (see transcribed.csv); checked against a machine reading of the page (OCR, or the PDF's own text layer for 2017-03-27), the neighbouring days, and the national average rebuilt from the prefecture prices for unleaded 95, 100 and diesel"
 2020-08-02,"filed under 2020-08-02: body says 2020-08-02, filename says 2020-02-02"
 2020-08-02,garbled names aligned (Σ>΢ Τ>Σ Υ>Τ)
-2020-08-03,"read by hand from the bulletin's page image (see transcribed.csv); checked against OCR, the neighbouring days and the published national average"
-2020-08-04,"read by hand from the bulletin's page image (see transcribed.csv); checked against OCR, the neighbouring days and the published national average"
-2020-08-05,"read by hand from the bulletin's page image (see transcribed.csv); checked against OCR, the neighbouring days and the published national average"
-2020-08-06,"read by hand from the bulletin's page image (see transcribed.csv); checked against OCR, the neighbouring days and the published national average"
-2020-08-07,"read by hand from the bulletin's page image (see transcribed.csv); checked against OCR, the neighbouring days and the published national average"
-2020-08-08,"read by hand from the bulletin's page image (see transcribed.csv); checked against OCR, the neighbouring days and the published national average"
-2020-08-09,"read by hand from the bulletin's page image (see transcribed.csv); checked against OCR, the neighbouring days and the published national average"
-2020-08-10,"read by hand from the bulletin's page image (see transcribed.csv); checked against OCR, the neighbouring days and the published national average"
+2020-08-03,"read by hand from the bulletin's page image (see transcribed.csv); checked against a machine reading of the page (OCR, or the PDF's own text layer for 2017-03-27), the neighbouring days, and the national average rebuilt from the prefecture prices for unleaded 95, 100 and diesel"
+2020-08-04,"read by hand from the bulletin's page image (see transcribed.csv); checked against a machine reading of the page (OCR, or the PDF's own text layer for 2017-03-27), the neighbouring days, and the national average rebuilt from the prefecture prices for unleaded 95, 100 and diesel"
+2020-08-05,"read by hand from the bulletin's page image (see transcribed.csv); checked against a machine reading of the page (OCR, or the PDF's own text layer for 2017-03-27), the neighbouring days, and the national average rebuilt from the prefecture prices for unleaded 95, 100 and diesel"
+2020-08-06,"read by hand from the bulletin's page image (see transcribed.csv); checked against a machine reading of the page (OCR, or the PDF's own text layer for 2017-03-27), the neighbouring days, and the national average rebuilt from the prefecture prices for unleaded 95, 100 and diesel"
+2020-08-07,"read by hand from the bulletin's page image (see transcribed.csv); checked against a machine reading of the page (OCR, or the PDF's own text layer for 2017-03-27), the neighbouring days, and the national average rebuilt from the prefecture prices for unleaded 95, 100 and diesel"
+2020-08-08,"read by hand from the bulletin's page image (see transcribed.csv); checked against a machine reading of the page (OCR, or the PDF's own text layer for 2017-03-27), the neighbouring days, and the national average rebuilt from the prefecture prices for unleaded 95, 100 and diesel"
+2020-08-09,"read by hand from the bulletin's page image (see transcribed.csv); checked against a machine reading of the page (OCR, or the PDF's own text layer for 2017-03-27), the neighbouring days, and the national average rebuilt from the prefecture prices for unleaded 95, 100 and diesel"
+2020-08-10,"read by hand from the bulletin's page image (see transcribed.csv); checked against a machine reading of the page (OCR, or the PDF's own text layer for 2017-03-27), the neighbouring days, and the national average rebuilt from the prefecture prices for unleaded 95, 100 and diesel"
 2020-09-01,"no header, borrowed column order from 2020-08-31"
 2020-09-02,"no header, borrowed column order from 2020-09-03"
 2021-05-09,the bulletin has no national average row

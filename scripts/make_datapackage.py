@@ -27,7 +27,7 @@ RESOURCES = [
      [PUMP_SRC], {**FUEL_DOC, "area_id": "See areas.csv"}, ("area_id", "areas", "area_id")),
     ("missing_days", "data/pump/missing_days.csv", "Days between the first and last bulletin with no data, and why.",
      [PUMP_SRC], {}, None),
-    ("transcribed", "data/pump/transcribed.csv", "Days no parser can read, typed in by hand from the bulletin's page image: twelve scanned bulletins of July-August 2020 and one with a broken text layout (27 March 2017). Each was checked against OCR, the neighbouring days, and the national average rebuilt from the prefecture prices; the rows also appear in the yearly pump files.",
+    ("transcribed", "data/pump/transcribed.csv", "Days no parser can read, typed in by hand from the bulletin's page image: twelve scanned bulletins of July-August 2020 and one with a broken text layout (27 March 2017). Each was checked against a machine reading of the page (OCR, or for 2017-03-27 the PDF's own text layer, which it matches cell for cell), against the neighbouring days, and against the national average rebuilt from the prefecture prices for unleaded 95, 100 and diesel; the rows also appear in the yearly pump files.",
      [PUMP_SRC], {**FUEL_DOC, "area_id": "See areas.csv"}, ("area_id", "areas", "area_id")),
     ("day_notes", "data/pump/day_notes.csv", "Days whose data needed care to read, and how: a garbled font map aligned to the prefecture order, a column order borrowed from a neighbouring day, a mislabelled file filed under the day its body names, a bulletin without its national average (left blank, never rebuilt), or a bulletin with no date line accepted under its filename's day after cross-checks.",
      [PUMP_SRC], {}, None),

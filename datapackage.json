@@ -180,7 +180,7 @@
       "profile": "tabular-data-resource",
       "format": "csv",
       "encoding": "utf-8",
-      "description": "Days no parser can read, typed in by hand from the bulletin's page image: twelve scanned bulletins of July-August 2020 and one with a broken text layout (27 March 2017). Each was checked against OCR, the neighbouring days, and the national average rebuilt from the prefecture prices; the rows also appear in the yearly pump files.",
+      "description": "Days no parser can read, typed in by hand from the bulletin's page image: twelve scanned bulletins of July-August 2020 and one with a broken text layout (27 March 2017). Each was checked against a machine reading of the page (OCR, or for 2017-03-27 the PDF's own text layer, which it matches cell for cell), against the neighbouring days, and against the national average rebuilt from the prefecture prices for unleaded 95, 100 and diesel; the rows also appear in the yearly pump files.",
       "sources": [
         {
           "title": "Ministry of Development, Fuel Price Observatory: daily price bulletins per prefecture",
