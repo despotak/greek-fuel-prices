@@ -1,0 +1,171 @@
+/*
+ * theme.css — the design tokens and base styles the claude.ai Dashboard host
+ * provides, for running the dashboard page as a plain static site.
+ *
+ * Light values on :root; dark values follow the system setting, and either can be
+ * forced with <html data-theme="light|dark">.
+ */
+@import url("https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap");
+
+:root {
+  color-scheme: light;
+
+  --font-anthropic-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-anthropic-serif: "Source Serif 4", Georgia, serif;
+
+  --cds-font-size-caption: 0.8125rem;
+  --cds-font-size-body: 0.9375rem;
+  --cds-font-size-heading: 1.0625rem;
+  --cds-font-size-title: clamp(1.5rem, 1.3rem + 0.8vw, 1.875rem);
+  --cds-font-weight-medium: 500;
+
+  --cds-radius: 8px;
+  --cds-pad-xs: 4px;
+  --cds-pad-sm: 8px;
+  --cds-pad-md: 12px;
+  --cds-pad-lg: 16px;
+  --cds-gap-xs: 4px;
+  --cds-gap-sm: 8px;
+  --cds-gap-md: 12px;
+  --cds-gap-lg: 24px;
+  --cds-dur-slow: 300ms;
+
+  --color-bg: #f9f9f7;
+  --color-panel: #fcfcfb;
+  --color-fg: #0b0b0b;
+  --color-fg-secondary: #52514e;
+  --color-fg-muted: #898781;
+  --color-border-line: #e1e0d9;
+  --color-ok: #006300;
+  --color-bad: #d03b3b;
+
+  --cds-text-secondary: var(--color-fg-secondary);
+  --cds-border: var(--color-border-line);
+  --cds-surface-popover: #ffffff;
+  --cds-shadow-popover: 0 4px 16px rgb(11 11 11 / 0.08), 0 1px 3px rgb(11 11 11 / 0.06);
+  --cds-skeleton: #ebeae4;
+
+  --cds-chart-categorical-1: #2a78d6;
+  --cds-chart-categorical-2: #eb6834;
+  --cds-chart-categorical-3: #1baf7a;
+  --cds-chart-categorical-4: #eda100;
+  --cds-chart-categorical-5: #e87ba4;
+  --cds-chart-categorical-6: #008300;
+  --cds-chart-categorical-7: #6250d6;
+  --cds-chart-categorical-8: #e34948;
+  --cds-chart-grid: #e1e0d9;
+  --cds-chart-axis: #c3c2b7;
+  --cds-chart-muted: #c3c2b7;
+  --cds-chart-reference: #898781;
+  --cds-chart-reference-tint: rgb(137 135 129 / 0.15);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --color-bg: #0d0d0d;
+    --color-panel: #1a1a19;
+    --color-fg: #f0efec;
+    --color-fg-secondary: #c3c2b7;
+    --color-fg-muted: #898781;
+    --color-border-line: #2c2c2a;
+    --color-ok: #0ca30c;
+    --cds-surface-popover: #232322;
+    --cds-shadow-popover: 0 4px 16px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
+    --cds-skeleton: #262624;
+    --cds-chart-categorical-1: #3987e5;
+    --cds-chart-categorical-2: #d95926;
+    --cds-chart-categorical-3: #199e70;
+    --cds-chart-categorical-4: #c98500;
+    --cds-chart-categorical-5: #d55181;
+    --cds-chart-categorical-6: #008300;
+    --cds-chart-categorical-7: #9085e9;
+    --cds-chart-categorical-8: #e66767;
+    --cds-chart-grid: #2c2c2a;
+    --cds-chart-axis: #383835;
+    --cds-chart-muted: #52514e;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #0d0d0d;
+  --color-panel: #1a1a19;
+  --color-fg: #f0efec;
+  --color-fg-secondary: #c3c2b7;
+  --color-fg-muted: #898781;
+  --color-border-line: #2c2c2a;
+  --color-ok: #0ca30c;
+  --cds-surface-popover: #232322;
+  --cds-shadow-popover: 0 4px 16px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
+  --cds-skeleton: #262624;
+  --cds-chart-categorical-1: #3987e5;
+  --cds-chart-categorical-2: #d95926;
+  --cds-chart-categorical-3: #199e70;
+  --cds-chart-categorical-4: #c98500;
+  --cds-chart-categorical-5: #d55181;
+  --cds-chart-categorical-6: #008300;
+  --cds-chart-categorical-7: #9085e9;
+  --cds-chart-categorical-8: #e66767;
+  --cds-chart-grid: #2c2c2a;
+  --cds-chart-axis: #383835;
+  --cds-chart-muted: #52514e;
+}
+
+/* ---- base ---------------------------------------------------------------------- */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* The page puts `hidden` on elements it also gives a display (the tab panels are
+   display: grid), and author CSS beats the browser's own [hidden] rule. */
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-anthropic-sans);
+  font-size: var(--cds-font-size-body);
+  line-height: 1.4;
+}
+
+#dash-root {
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-block: 24px 48px;
+  padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
+  box-sizing: content-box;
+}
+
+/* ---- loading placeholders -------------------------------------------------------- */
+
+/* A value still loading: a short muted bar in place of its text. */
+.dash-skeleton {
+  color: transparent !important;
+  background: var(--cds-skeleton);
+  border-radius: 4px;
+}
+span.dash-skeleton {
+  display: inline-block;
+  min-width: 3.5em;
+  height: 0.85em;
+  line-height: 0.85em;
+  overflow: hidden;
+  vertical-align: -0.05em;
+}
+
+/* A chart box the page has emptied while its data loads: fill it. */
+div.dash-skeleton { border-radius: var(--cds-radius); }
+div.dash-skeleton:not(:empty) { background: none; color: inherit !important; }
+
+/* A table keeps its header readable; only the pulse shows it is loading. */
+table.dash-skeleton { background: none; color: inherit !important; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .dash-skeleton { animation: dash-skeleton-pulse 1.6s ease-in-out infinite; }
+}
+@keyframes dash-skeleton-pulse {
+  50% { opacity: 0.5; }
+}

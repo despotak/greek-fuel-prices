@@ -1,0 +1,11 @@
+# The PDF archive and raw downloads stay local; the repository holds the parsed data.
+/pdf/
+/local/
+/build/
+/data/markets/
+/data/dashboard/
+/data/bulletins_daily.csv
+/data/parse.log
+__pycache__/
+*.pyc
+/data/eu_weekly_oil_bulletin_history.xlsx

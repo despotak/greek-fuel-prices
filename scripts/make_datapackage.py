@@ -1,0 +1,83 @@
+"""Write datapackage.json (Frictionless Data Package) from the CSVs actually in data/.
+
+Usage: python3 make_datapackage.py <root>
+Field order is read from each file's header, so the descriptor cannot drift from the data.
+"""
+import csv
+import json
+import pathlib
+import sys
+
+FUEL_DOC = {
+    "unleaded95": "Unleaded 95 octane (Αμόλυβδη 95)", "unleaded100": "Unleaded 100 octane (Αμόλυβδη 100)",
+    "super": "Super (until 2022; very few stations)", "diesel": "Road diesel (Diesel κίνησης)",
+    "autogas": "Autogas, LPG (Υγραέριο κίνησης)", "heating_oil": "Heating oil delivered to the home (Diesel θέρμανσης κατ' οίκον); 15 Oct to 30 Apr only",
+}
+TYPES = {"date": "date", "month": "string", "day": "integer", "n_7": "integer", "n_14": "integer"}
+PUMP_SRC = {"title": "Ministry of Development, Fuel Price Observatory: daily price bulletins per prefecture", "path": "https://www.fuelprices.gr/deltia_dn.view"}
+REFINERY_SRC = [{"title": "Ministry price observatory, refinery prices (ELPE, Motor Oil)", "path": "https://oil.gge.gov.gr"},
+                {"title": "collected by greek-oil-refinery-prices (AGPL-3.0 code)", "path": "https://github.com/akosiaris/greek-oil-refinery-prices"}]
+ECB_SRC = {"title": "European Central Bank, euro reference exchange rate (USD)", "path": "https://data.ecb.europa.eu/data/datasets/EXR"}
+CC_BY = [{"name": "CC-BY-4.0", "path": "https://creativecommons.org/licenses/by/4.0/", "title": "Creative Commons Attribution 4.0"}]
+
+RESOURCES = [
+    ("areas", "data/areas.csv", "The 51 prefectures (νομοί) and the national average, with the label the bulletins print.",
+     [PUMP_SRC], {"area_id": "Stable identifier used across the data"}, None),
+    ("pump_prices", "data/pump/[0-9]*.csv", "Average retail price per litre by prefecture and day, in EUR including 24% VAT, as printed in each daily bulletin. One file per year.",
+     [PUMP_SRC], {**FUEL_DOC, "area_id": "See areas.csv"}, ("area_id", "areas", "area_id")),
+    ("missing_days", "data/pump/missing_days.csv", "Days between the first and last bulletin with no data, and why.",
+     [PUMP_SRC], {}, None),
+    ("accepted_anomalies", "data/pump/accepted_anomalies.csv", "Days whose large price jumps were checked against the bulletin and accepted as published.",
+     [PUMP_SRC], {}, None),
+    ("refinery_prices", "data/refinery/refinery_prices.csv", "Daily ex-refinery prices of ELPE and Motor Oil per product. 'mean' and 'mean_incl_vat' as published; see 'basis' for what each includes and the unit.",
+     REFINERY_SRC, {}, None),
+    ("ecb_eurusd", "data/international/ecb_eurusd.csv", "ECB euro reference rate, US dollars per euro.",
+     [ECB_SRC], {}, None),
+    ("model_forecast", "data/model/forecast.csv", "Expected change of the pump price 7 and 14 days after the latest bulletin per area and fuel (EUR/L), with the model's backtest record since 2024: mean absolute error (mae_*), the error of assuming no change (mae_naive_*), and the share of days the direction was right (hit_*) and the share a 'same as last week' guess got right (hit_momentum_*).",
+     [PUMP_SRC, *REFINERY_SRC], {}, None),
+    ("model_passthrough_curve", "data/model/passthrough_curve.csv", "Cumulative share of a price change passed on after 0-28 days: refinery after an international (EIA NY Harbor) move, and pump after a refinery move. Distributed-lag regression on daily data since 2019, March-June 2022 excluded.",
+     [PUMP_SRC, *REFINERY_SRC], {}, None),
+]
+
+
+def main(root):
+    root = pathlib.Path(root)
+    resources = []
+    for name, pattern, desc, sources, docs, fk in RESOURCES:
+        paths = sorted(str(p.relative_to(root)) for p in root.glob(pattern))
+        with open(root / paths[0], encoding="utf-8") as fh:
+            header = next(csv.reader(fh))
+        fields = []
+        for col in header:
+            t = TYPES.get(col, "number" if col in FUEL_DOC or col.startswith(("change_", "mae_", "hit_", "share", "pump", "elpe", "motor_oil", "mean", "usd_per")) else "string")
+            field = {"name": col, "type": t}
+            if col in docs:
+                field["description"] = docs[col]
+            fields.append(field)
+        res = {"name": name, "path": paths if len(paths) > 1 else paths[0], "profile": "tabular-data-resource",
+               "format": "csv", "encoding": "utf-8", "description": desc, "sources": sources,
+               "schema": {"fields": fields, "missingValues": [""]}}
+        if name.startswith("model_"):
+            res["licenses"] = CC_BY
+        if fk:
+            res["schema"]["foreignKeys"] = [{"fields": fk[0], "reference": {"resource": fk[1], "fields": fk[2]}}]
+        if name == "areas":
+            res["schema"]["primaryKey"] = "area_id"
+        resources.append(res)
+    pkg = {
+        "name": "greek-fuel-prices",
+        "title": "Greek fuel prices by prefecture, daily",
+        "description": "Daily average pump prices for every Greek prefecture since March 2017, read from the Ministry of Development's daily bulletins, with Greek refinery prices and a model of how pump prices follow them. Updated every day.",
+        "homepage": "https://despotak.github.io/greek-fuel-prices/",
+        "profile": "tabular-data-package",
+        "keywords": ["fuel prices", "Greece", "heating oil", "diesel", "gasoline", "open data"],
+        "licenses": [{"name": "other-attribution", "title": "Each resource keeps the terms of its source; credit the source. Model outputs: CC BY 4.0."}],
+        "contributors": [{"title": "Christos Despotakis", "role": "author", "path": "https://github.com/despotak"}],
+        "resources": resources,
+    }
+    (root / "datapackage.json").write_text(json.dumps(pkg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"datapackage.json: {len(resources)} resources", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1])

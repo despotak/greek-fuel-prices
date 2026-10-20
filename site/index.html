@@ -1,0 +1,1476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Greek fuel prices</title>
+<meta name="description" content="Daily pump prices for every Greek prefecture since 2017, how they follow refinery and world prices, and a two-week outlook.">
+<link rel="stylesheet" href="theme.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+window.DASH_DATASETS = {
+  heating_oil: 'data/heating_oil_daily_by_area.csv', diesel: 'data/diesel_daily_by_area.csv',
+  unleaded95: 'data/unleaded95_daily_by_area.csv', unleaded100: 'data/unleaded100_daily_by_area.csv',
+  autogas: 'data/autogas_daily_by_area.csv', super: 'data/super_daily_by_area.csv',
+  forecast: 'data/forecast.csv', passthrough_curve: 'data/passthrough_curve.csv',
+  chain: 'data/chain.csv', steo: 'data/steo.csv',
+};
+window.DASH_PARAMS = { area: 'Αττική', fuel: 'heating_oil', range: 'all' };
+</script>
+<script src="dash.js"></script>
+</head>
+<body>
+<div id="dash-root">
+<style>
+  .fp { display: grid; gap: var(--cds-gap-lg); font-family: var(--font-anthropic-sans); color: var(--color-fg); min-width: 0; }
+  .fp-head { display: grid; gap: var(--cds-gap-xs); }
+  .fp-title { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+  .fp-take { margin: 0; max-width: 70ch; color: var(--color-fg-secondary); font-size: var(--cds-font-size-body); line-height: 1.55; }
+  .fp-take .fp-strong { color: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
+
+  .fp-controls { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md) var(--cds-gap-lg); align-items: center; }
+  .fp-control { display: flex; align-items: center; gap: var(--cds-gap-sm); min-width: 0; }
+  .fp-label { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .fp-select { font: inherit; font-size: var(--cds-font-size-caption); color: var(--color-fg); background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-xs) var(--cds-pad-sm); max-width: 100%; }
+  .fp-seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; }
+  .fp-seg button { font: inherit; font-size: var(--cds-font-size-caption); padding: var(--cds-pad-xs) var(--cds-pad-sm); background: transparent; color: var(--color-fg-muted); border: 0; cursor: pointer; }
+  .fp-seg button + button { border-left: 1px solid var(--color-border-line); }
+  .fp-seg button[aria-pressed="true"] { background: var(--color-panel); color: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
+  .fp-seg button:focus-visible, .fp-select:focus-visible, .fp-legend button:focus-visible, .fp-sort:focus-visible, .fp-chart:focus-visible, .fp-tile:focus-visible, .fp-table tbody tr:focus-visible { outline: 2px solid var(--cds-chart-categorical-1); outline-offset: 2px; }
+
+  .fp-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr)); gap: var(--cds-gap-md); }
+  .fp-tile { font: inherit; text-align: left; color: inherit; cursor: pointer; background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md) var(--cds-pad-lg); display: grid; gap: var(--cds-gap-xs); align-content: start; }
+  .fp-tile[aria-pressed="true"] { border-color: var(--k); box-shadow: inset 0 0 0 1px var(--k); }
+  .fp-tile > span { display: block; }
+  .fp-tile-name { display: flex !important; align-items: center; gap: var(--cds-gap-sm); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .fp-key { display: inline-block; width: 14px; height: 2px; border-radius: 1px; background: var(--k); flex: none; }
+  .fp-key.fp-box { height: 10px; border-radius: 2px; opacity: 0.25; }
+  .fp-price { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); line-height: 1.1; white-space: nowrap; }
+  .fp-price .fp-mil { font-size: 0.62em; vertical-align: 0.42em; margin-left: 0.04em; }
+  .fp-unit { font-family: var(--font-anthropic-sans); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-left: 0.35em; }
+  .fp-delta { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .fp-up { color: var(--color-bad); font-weight: var(--cds-font-weight-medium); }
+  .fp-down { color: var(--color-ok); font-weight: var(--cds-font-weight-medium); }
+
+  .fp-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: grid; gap: var(--cds-gap-sm); min-width: 0; }
+  .fp-card-title { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
+  .fp-note { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: 0; max-width: 80ch; line-height: 1.5; }
+  .fp-chart { position: relative; width: 100%; }
+  .fp-chart svg { display: block; overflow: visible; }
+  .fp-chart text { font-family: var(--font-anthropic-sans); }
+  #trend-chart { min-height: 320px; }
+  #period-chart { min-height: 300px; }
+  #history-chart { min-height: 320px; }
+  .fp-axis text { fill: var(--color-fg-muted); font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+  .fp-grid line { stroke: var(--cds-chart-grid); }
+  .fp-endlabel { fill: var(--color-fg-secondary); font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+  .fp-endlabel .fp-v { fill: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
+  .fp-leader { stroke: var(--cds-chart-axis); fill: none; }
+  .fp-rule { stroke: var(--cds-chart-reference); }
+  .fp-empty { display: flex; align-items: center; justify-content: center; min-height: inherit; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+
+  .fp-tip { position: absolute; top: 0; left: 0; z-index: 2; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); min-width: 10rem; }
+  .fp-tip-date { color: var(--cds-text-secondary); margin-bottom: 2px; }
+  .fp-tip-row { display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: var(--cds-gap-sm); line-height: 1.6; }
+  .fp-tip-row .fp-tv { font-variant-numeric: tabular-nums; font-weight: var(--cds-font-weight-medium); text-align: right; }
+  .fp-tip-row.fp-dim { color: var(--color-fg-muted); }
+  .fp-tip-row.fp-dim .fp-tv { font-weight: 400; }
+
+  .fp-legend { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs) var(--cds-gap-md); align-items: center; }
+  .fp-legend button, .fp-legend .fp-li { font: inherit; font-size: var(--cds-font-size-caption); display: inline-flex; align-items: center; gap: var(--cds-gap-xs); background: transparent; border: 0; padding: 2px 0; color: var(--color-fg-secondary); }
+  .fp-legend button { cursor: pointer; }
+  .fp-legend button[aria-pressed="false"] { color: var(--color-fg-muted); text-decoration: line-through; }
+  .fp-legend button[aria-pressed="false"] .fp-key { opacity: 0.3; }
+  .fp-legend .fp-aside { color: var(--color-fg-muted); }
+
+  .fp-tablebox { max-height: 28rem; overflow: auto; border-top: 1px solid var(--color-border-line); }
+  .fp-table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+  .fp-table th { position: sticky; top: 0; background: var(--color-panel); text-align: right; font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); padding: 0; border-bottom: 1px solid var(--color-border-line); }
+  .fp-table th:first-child, .fp-table td:first-child { text-align: left; }
+  .fp-sort { font: inherit; color: inherit; background: transparent; border: 0; padding: var(--cds-pad-xs) var(--cds-pad-sm); cursor: pointer; width: 100%; text-align: inherit; white-space: nowrap; }
+  .fp-table th[aria-sort="ascending"] .fp-sort, .fp-table th[aria-sort="descending"] .fp-sort { color: var(--color-fg); }
+  .fp-table th[aria-sort="ascending"] .fp-sort::after { content: " ↑"; }
+  .fp-table th[aria-sort="descending"] .fp-sort::after { content: " ↓"; }
+  .fp-table td { padding: 3px var(--cds-pad-sm); text-align: right; border-bottom: 1px solid var(--cds-chart-grid); }
+  .fp-table tbody tr { cursor: pointer; }
+  .fp-table tbody tr:hover td { background: var(--cds-chart-reference-tint); }
+  .fp-table tr.fp-picked td { background: var(--cds-chart-reference-tint); color: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
+  .fp-table tr.fp-national td { color: var(--color-fg-secondary); font-style: italic; }
+  .fp-table td.fp-sorted { color: var(--color-fg); }
+  .fp-failed { display: flex; align-items: center; justify-content: center; gap: var(--cds-gap-sm); min-height: inherit; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+  .fp-failed::before { content: ""; width: 0.375rem; height: 0.375rem; border-radius: 50%; background: var(--color-bad); }
+
+  .fp-tabs { display: flex; gap: var(--cds-gap-lg); border-bottom: 1px solid var(--color-border-line); }
+  .fp-tabs button { font: inherit; font-size: var(--cds-font-size-body); background: transparent; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: var(--cds-pad-xs) 0; color: var(--color-fg-muted); cursor: pointer; }
+  .fp-tabs button[aria-selected="true"] { color: var(--color-fg); border-bottom-color: var(--cds-chart-categorical-1); font-weight: var(--cds-font-weight-medium); }
+  .fp-tabs button:focus-visible { outline: 2px solid var(--cds-chart-categorical-1); outline-offset: 2px; }
+  .fp-page { display: grid; gap: var(--cds-gap-lg); min-width: 0; }
+  .fp-outlook td, .fp-outlook th { white-space: nowrap; }
+  .fp-outlook tbody tr, .fp-outlook .fp-sort { cursor: default; }
+  .fp-outlook tbody tr:hover td { background: transparent; }
+  .fp-outlook tr.fp-picked td { background: var(--cds-chart-reference-tint); }
+  .fp-outlook .fp-pm { color: var(--color-fg-muted); }
+  .fp-outlook .fp-reading { text-align: left; }
+  .fp-tablebox.fp-short { max-height: none; overflow-x: auto; }
+  #chain-chart { min-height: 320px; }
+  #lag-chart { min-height: 260px; }
+  #steo-chart { min-height: 280px; }
+  .fp [data-dash-source-state=refreshing] { opacity: 0.5; transition: opacity var(--cds-dur-slow); }
+  .fp [data-dash-source-state=empty] { color: transparent; }
+  .fp-foot a { color: var(--color-fg-secondary); }
+  .fp-foot { padding-block: var(--cds-gap-md); }
+  .fp-notes { display: grid; gap: var(--cds-gap-xs); padding-left: 1.1em; margin: 0; }
+</style>
+
+<div class="fp">
+  <header class="fp-head" id="top">
+    <h1 class="fp-title">Greek fuel prices</h1>
+    <p class="fp-take" id="takeaway">
+      <span class="fp-area-name">Αττική</span>, <span class="fp-fuel-name">heating oil</span>:
+      <span class="fp-strong"><span class="dash-skeleton" data-source="kpis" data-field="latest" data-kind="price">—</span> €/L</span>
+      on <span class="dash-skeleton" data-source="kpis" data-field="date" data-kind="date">—</span>,
+      <span class="fp-strong dash-skeleton" data-source="kpis" data-field="change_pct" data-kind="pct">—</span> on a year ago<span class="fp-rank-clause">, the
+      <span class="fp-m-rank dash-skeleton" data-source="ranks" data-field="rank" data-kind="ordinal">—</span> cheapest of
+      <span class="fp-m-rank dash-skeleton" data-source="ranks" data-field="of" data-kind="int">—</span> prefectures</span>.
+      <span class="fp-period-intro">Last season</span>
+      (<span class="dash-skeleton" data-source="periods" data-field="period" data-kind="text">—</span>) it ran from a low of
+      <span class="dash-skeleton" data-source="periods" data-field="low" data-kind="price">—</span> on
+      <span class="dash-skeleton" data-source="periods" data-field="low_date" data-kind="date">—</span> to a high of
+      <span class="fp-strong dash-skeleton" data-source="periods" data-field="peak" data-kind="price">—</span> on
+      <span class="dash-skeleton" data-source="periods" data-field="peak_date" data-kind="date">—</span>, and closed at
+      <span class="dash-skeleton" data-source="periods" data-field="close" data-kind="price">—</span>.
+    </p>
+  </header>
+
+  <div class="fp-controls" id="filters">
+    <label class="fp-control"><span class="fp-label">Area</span>
+      <select class="fp-select" id="area-select" data-source="latest"></select></label>
+    <label class="fp-control"><span class="fp-label">Fuel</span>
+      <select class="fp-select" id="fuel-select">
+        <option value="heating_oil">Heating oil</option>
+        <option value="diesel">Diesel</option>
+        <option value="unleaded95">Unleaded 95</option>
+        <option value="unleaded100">Unleaded 100</option>
+        <option value="autogas">Autogas (LPG)</option>
+        <option value="super">Super (until 2022)</option>
+      </select></label>
+    <div class="fp-control">
+      <span class="fp-label" id="lbl-range">Period</span>
+      <div class="fp-seg" role="group" aria-labelledby="lbl-range" id="range-seg">
+        <button type="button" data-value="1m">1M</button>
+        <button type="button" data-value="3m">3M</button>
+        <button type="button" data-value="1y">1Y</button>
+        <button type="button" data-value="3y">3Y</button>
+        <button type="button" data-value="all">All</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="fp-tabs" role="tablist" aria-label="Views">
+    <button type="button" role="tab" id="tab-prices" data-page="prices" aria-controls="page-prices" aria-selected="true">Prices</button>
+    <button type="button" role="tab" id="tab-outlook" data-page="outlook" aria-controls="page-outlook" aria-selected="false">Outlook</button>
+  </div>
+
+  <div class="fp-page" id="page-prices" role="tabpanel" aria-labelledby="tab-prices">
+  <section class="fp-tiles" id="today" aria-label="Latest price of each fuel in the chosen area">
+    <button type="button" class="fp-tile" data-fuel="heating_oil" style="--k: var(--cds-chart-categorical-1)">
+      <span class="fp-tile-name"><span class="fp-key"></span>Heating oil, delivered</span>
+      <span class="fp-price"><span class="dash-skeleton" data-source="kpis" data-field="latest" data-kind="pump">—</span><span class="fp-unit">€/L</span></span>
+      <span class="fp-delta"><span class="dash-skeleton" data-source="kpis" data-field="change_pct" data-kind="delta">—</span> on a year ago</span>
+    </button>
+    <button type="button" class="fp-tile" data-fuel="diesel" style="--k: var(--cds-chart-categorical-2)">
+      <span class="fp-tile-name"><span class="fp-key"></span>Diesel</span>
+      <span class="fp-price"><span class="dash-skeleton" data-source="kpis" data-field="latest" data-kind="pump">—</span><span class="fp-unit">€/L</span></span>
+      <span class="fp-delta"><span class="dash-skeleton" data-source="kpis" data-field="change_pct" data-kind="delta">—</span> on a year ago</span>
+    </button>
+    <button type="button" class="fp-tile" data-fuel="unleaded95" style="--k: var(--cds-chart-categorical-3)">
+      <span class="fp-tile-name"><span class="fp-key"></span>Unleaded 95</span>
+      <span class="fp-price"><span class="dash-skeleton" data-source="kpis" data-field="latest" data-kind="pump">—</span><span class="fp-unit">€/L</span></span>
+      <span class="fp-delta"><span class="dash-skeleton" data-source="kpis" data-field="change_pct" data-kind="delta">—</span> on a year ago</span>
+    </button>
+    <button type="button" class="fp-tile" data-fuel="unleaded100" style="--k: var(--cds-chart-categorical-4)">
+      <span class="fp-tile-name"><span class="fp-key"></span>Unleaded 100</span>
+      <span class="fp-price"><span class="dash-skeleton" data-source="kpis" data-field="latest" data-kind="pump">—</span><span class="fp-unit">€/L</span></span>
+      <span class="fp-delta"><span class="dash-skeleton" data-source="kpis" data-field="change_pct" data-kind="delta">—</span> on a year ago</span>
+    </button>
+    <button type="button" class="fp-tile" data-fuel="autogas" style="--k: var(--cds-chart-categorical-5)">
+      <span class="fp-tile-name"><span class="fp-key"></span>Autogas (LPG)</span>
+      <span class="fp-price"><span class="dash-skeleton" data-source="kpis" data-field="latest" data-kind="pump">—</span><span class="fp-unit">€/L</span></span>
+      <span class="fp-delta"><span class="dash-skeleton" data-source="kpis" data-field="change_pct" data-kind="delta">—</span> on a year ago</span>
+    </button>
+  </section>
+
+  <section class="fp-card" id="trend">
+    <h2 class="fp-card-title" id="trend-title">Heating oil in Αττική</h2>
+    <p class="fp-note">Daily average pump price in the chosen area, against the national average and the spread from the cheapest to the dearest prefecture on each day.</p>
+    <div class="fp-legend" id="trend-legend"></div>
+    <div class="fp-chart" id="trend-chart" data-source="heating_oil" tabindex="0" aria-label="Price of the chosen fuel over time"></div>
+  </section>
+
+  <section class="fp-card" id="periods-card">
+    <h2 class="fp-card-title" id="period-title">Heating oil in Αττική, season by season</h2>
+    <p class="fp-note" id="period-note">Each line is one heating season, 15 October to 30 April. The Period buttons do not apply here: every season since 2017 is shown.</p>
+    <div class="fp-legend" id="period-legend"></div>
+    <div class="fp-chart" id="period-chart" data-source="heating_oil" tabindex="0" aria-label="Price of the chosen fuel by day of season or year, one line each"></div>
+  </section>
+
+  <section class="fp-card" id="history">
+    <h2 class="fp-card-title" id="history-title">Every fuel in Αττική</h2>
+    <p class="fp-note">Click a fuel to hide or show it. Heating oil drops out every summer, when it is not sold at the reduced rate, and Super ends in 2022.</p>
+    <div class="fp-legend" id="history-legend"></div>
+    <div class="fp-chart" id="history-chart" data-source="heating_oil diesel unleaded95 unleaded100 autogas super" tabindex="0" aria-label="Daily price of every fuel in the chosen area"></div>
+  </section>
+
+  <section class="fp-card" id="prefectures">
+    <h2 class="fp-card-title">All prefectures on <span class="dash-skeleton" data-source="latest" data-field="date" data-row="0" data-kind="date">—</span></h2>
+    <p class="fp-note" id="rank-line">Cheapest for <span class="fp-rank-fuel">heating oil</span><span class="fp-ex-when"> on
+      <span class="fp-m-exdate" data-source="extremes" data-field="date" data-kind="date">—</span>, its last bulletin day</span>:
+      <span class="dash-skeleton" data-source="extremes" data-field="cheapest" data-kind="text">—</span> at
+      <span class="dash-skeleton" data-source="extremes" data-field="cheapest_price" data-kind="price">—</span>; dearest:
+      <span class="dash-skeleton" data-source="extremes" data-field="dearest" data-kind="text">—</span> at
+      <span class="dash-skeleton" data-source="extremes" data-field="dearest_price" data-kind="price">—</span>.
+      Click a row to see that area, or a heading to sort.</p>
+    <div class="fp-tablebox">
+      <table class="fp-table" id="pref-table" data-source="latest" data-row-key="area">
+        <thead><tr>
+          <th data-field="area" scope="col"><button type="button" class="fp-sort" data-col="area">Area</button></th>
+          <th data-field="heating_oil" scope="col"><button type="button" class="fp-sort" data-col="heating_oil">Heating oil</button></th>
+          <th data-field="diesel" scope="col"><button type="button" class="fp-sort" data-col="diesel">Diesel</button></th>
+          <th data-field="unleaded95" scope="col"><button type="button" class="fp-sort" data-col="unleaded95">Unl. 95</button></th>
+          <th data-field="unleaded100" scope="col"><button type="button" class="fp-sort" data-col="unleaded100">Unl. 100</button></th>
+          <th data-field="autogas" scope="col"><button type="button" class="fp-sort" data-col="autogas">Autogas</button></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="fp-card" id="about">
+    <h2 class="fp-card-title">About the numbers</h2>
+    <ul class="fp-notes fp-note">
+      <li>Source: the daily per-prefecture bulletins of the Ministry of Development's fuel price observatory on fuelprices.gr, one PDF a day, read automatically. Daily from
+        <span class="dash-skeleton" data-source="coverage" data-field="first" data-row="0" data-kind="date">—</span> to
+        <span class="dash-skeleton" data-source="coverage" data-field="last" data-row="0" data-kind="date">—</span>. Prices are averages in euro per litre, VAT included.</li>
+      <li>Heating oil is the bulletin's “Diesel Θέρμανσης Κατ' οίκον”, delivered to the home, and is only reported from 15 October to 30 April, the season with reduced excise duty. “Greece (national average)” is the average the bulletin prints, weighted by each prefecture's sales.</li>
+      <li>The national figures match the EU Weekly Oil Bulletin's prices for Greece on almost every Monday since 2017, for unleaded 95, diesel and heating oil.</li>
+      <li>Super is hidden by default in the all-fuels chart: by late 2021 only a handful of stations in the whole country still sold it, so its averages say little.</li>
+      <li>Short gaps are days the site has no readable bulletin: days it never published, bulletins posted only as scanned images, and a technical outage from 26 to 29 January 2024.</li>
+    </ul>
+  </section>
+  </div>
+
+  <div class="fp-page" id="page-outlook" role="tabpanel" aria-labelledby="tab-outlook" hidden>
+    <section class="fp-card" id="next-weeks">
+      <h2 class="fp-card-title" id="next-title">Next two weeks in Αττική</h2>
+      <p class="fp-note">Expected change in the pump price from the bulletin of <span class="dash-skeleton" data-source="forecast" data-field="date" data-row="0" data-kind="date">—</span>, with the typical error of these forecasts since 2024 (±). A change smaller than its error reads as flat.</p>
+      <div class="fp-tablebox fp-short">
+        <table class="fp-table fp-outlook" id="outlook-table" data-source="outlook" data-row-key="area,fuel">
+          <thead><tr>
+            <th data-field="fuel" scope="col"><span class="fp-sort">Fuel</span></th>
+            <th data-field="pump" scope="col"><span class="fp-sort">Now</span></th>
+            <th data-field="change_7_c" scope="col"><span class="fp-sort">In 7 days, cents</span></th>
+            <th data-field="mae_7_c" scope="col"><span class="fp-sort">±</span></th>
+            <th data-field="change_14_c" scope="col"><span class="fp-sort">In 14 days, cents</span></th>
+            <th data-field="mae_14_c" scope="col"><span class="fp-sort">±</span></th>
+            <th data-field="low_14" scope="col"><span class="fp-sort">Likely in 14 days, from</span></th>
+            <th data-field="high_14" scope="col"><span class="fp-sort">to</span></th>
+            <th data-field="reading" scope="col" class="fp-reading"><span class="fp-sort">Reading</span></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="fp-note" id="record-line">Since 2024, 7-day forecasts for <span class="fp-rec-fuel">heating oil</span> in <span class="fp-rec-area">Αττική</span> were off by
+        <span class="fp-m-rec dash-skeleton" data-source="outlook" data-field="mae_7_c" data-kind="cents">—</span> cents on average, against
+        <span class="fp-m-rec dash-skeleton" data-source="outlook" data-field="mae_naive_7_c" data-kind="cents">—</span> for assuming no change, and called the direction right
+        <span class="fp-m-rec dash-skeleton" data-source="outlook" data-field="hit_7" data-kind="share">—</span> of the time; guessing “same as last week” got
+        <span class="fp-m-rec dash-skeleton" data-source="outlook" data-field="hit_momentum_7" data-kind="share">—</span>.</p>
+    </section>
+
+    <section class="fp-card" id="chain">
+      <h2 class="fp-card-title" id="chain-title">From world markets to the pump</h2>
+      <p class="fp-note">All three in euro per litre at the pump: the international wholesale price with Greek excise and VAT added, the Greek refinery price with VAT, and the pump price. The refinery moves a few days after the international price and the pump about a week after the refinery; the gaps between the lines are refining, distribution and retail margins. The international line ends about a week before the others because EIA publishes it with that delay.</p>
+      <div class="fp-legend" id="chain-legend"></div>
+      <div class="fp-chart" id="chain-chart" data-source="chain heating_oil" tabindex="0" aria-label="International, refinery and pump price over time"></div>
+    </section>
+
+    <section class="fp-card" id="lag">
+      <h2 class="fp-card-title" id="lag-title">How fast a price move reaches the pump</h2>
+      <p class="fp-note">Share of a price change passed on after a given number of days, estimated from daily prices since 2019 without the March–June 2022 spike. Rises and falls pass through at about the same speed.</p>
+      <div class="fp-legend" id="lag-legend"></div>
+      <div class="fp-chart" id="lag-chart" data-source="passthrough_curve" tabindex="0" aria-label="Share of a price move passed on by day"></div>
+    </section>
+
+    <section class="fp-card" id="steo">
+      <h2 class="fp-card-title">EIA's monthly outlook</h2>
+      <p class="fp-note">Brent crude and US wholesale diesel and gasoline as published by the US Energy Information Administration in its <span class="dash-skeleton" data-source="steo" data-field="vintage" data-row="0" data-kind="text">—</span> Short-Term Energy Outlook, in euro per litre at the ECB rate of <span class="dash-skeleton" data-source="steo" data-field="eurusd_date" data-row="0" data-kind="date">—</span>. The shaded months are EIA's forecast: one agency's view, revised every month, not a market price. Exchange futures would show the market's view, but their prices are licensed and cannot be republished here.</p>
+      <div class="fp-legend" id="steo-legend"></div>
+      <div class="fp-chart" id="steo-chart" data-source="steo" tabindex="0" aria-label="EIA monthly prices and forecast"></div>
+    </section>
+
+    <section class="fp-card" id="outlook-about">
+      <h2 class="fp-card-title">How the outlook works</h2>
+      <ul class="fp-notes fp-note">
+        <li>The forecast combines three things known on the day: how far the pump price sits from the refinery price plus its usual margin, how much the refinery price moved in the last week, and how much the international price moved in the last week. It is refitted on all earlier data and checked against what actually happened, every day since January 2024.</li>
+        <li>International prices are New York Harbor wholesale diesel and gasoline from the US Energy Information Administration, which takes them from Refinitiv (LSEG) and publishes them about a week after the fact. The model only uses what had been published on each day, so its international input is always a week old; that is the honest version, and its backtest record above is measured that way. Refinery prices are the ELPE and Motor Oil prices from oil.gge.gov.gr, as collected by the open greek-oil-refinery-prices project.</li>
+        <li>Heating oil is only sold at its reduced rate from 15 October; in the first week of a season its forecast leans on the road diesel refinery price, which is the same fuel at a higher excise.</li>
+        <li>Autogas and Super are not covered: the refinery quotes autogas per tonne, and Super is no longer sold.</li>
+      </ul>
+    </section>
+  </div>
+
+  <footer class="fp-note fp-foot" id="site-foot">Latest bulletin: <span class="dash-skeleton" data-source="latest" data-field="date" data-row="0" data-kind="date">—</span>. Rebuilt every day from fuelprices.gr, oil.gge.gov.gr, the ECB and the US EIA. Data and code: <a href="https://github.com/despotak/greek-fuel-prices">github.com/despotak/greek-fuel-prices</a> · <a href="datapackage.json">datapackage.json</a></footer>
+</div>
+
+<script>
+dash.calc('latest', {
+  inputs: ['heating_oil', 'diesel', 'unleaded95', 'unleaded100', 'autogas'],
+  title: 'Every area on the latest day',
+  description: 'For the national average and each prefecture: the price of each current fuel on the most recent bulletin day.',
+  fn: (heating_oil, diesel, unleaded95, unleaded100, autogas) => {
+    const sets = { heating_oil, diesel, unleaded95, unleaded100, autogas };
+    const day = diesel[diesel.length - 1].date;
+    const onDay = Object.fromEntries(Object.entries(sets).map(([fuel, rows]) => [fuel, rows.findLast((r) => r.date === day)]));
+    const areas = Object.keys(diesel[0]).filter((k) => k !== 'date');
+    return areas.map((area) => {
+      const row = { area, date: day };
+      for (const fuel of Object.keys(sets)) {
+        const v = onDay[fuel] ? onDay[fuel][area] : '';
+        row[fuel] = v === '' || v == null ? null : Number(v);
+      }
+      return row;
+    });
+  },
+});
+
+dash.calc('kpis', {
+  inputs: ['heating_oil', 'diesel', 'unleaded95', 'unleaded100', 'autogas', 'super'],
+  title: 'Latest price and change on a year ago',
+  description: 'For each fuel and area: the latest reported price, the price on the last day at or before the same date a year earlier (within a week), and the change between them.',
+  fn: (heating_oil, diesel, unleaded95, unleaded100, autogas, superFuel) => {
+    const sets = { heating_oil, diesel, unleaded95, unleaded100, autogas, super: superFuel };
+    const out = [];
+    for (const [fuel, rows] of Object.entries(sets)) {
+      const areas = Object.keys(rows[0]).filter((k) => k !== 'date');
+      for (const area of areas) {
+        let i = rows.length - 1;
+        while (i >= 0 && rows[i][area] === '') i--;
+        if (i < 0) continue;
+        const last = rows[i];
+        const target = new Date(last.date + 'T00:00:00Z');
+        target.setUTCFullYear(target.getUTCFullYear() - 1);
+        const hi = target.toISOString().slice(0, 10);
+        const lo = new Date(target.getTime() - 7 * 864e5).toISOString().slice(0, 10);
+        let j = i;
+        while (j >= 0 && rows[j].date > hi) j--;
+        while (j >= 0 && rows[j].date >= lo && rows[j][area] === '') j--;
+        const prev = j >= 0 && rows[j].date >= lo ? rows[j] : null;
+        const latest = Number(last[area]);
+        const yearAgo = prev ? Number(prev[area]) : null;
+        out.push({
+          fuel, area, date: last.date, latest,
+          year_ago_date: prev ? prev.date : null,
+          year_ago: yearAgo,
+          change_pct: yearAgo == null ? null : (latest - yearAgo) / yearAgo,
+        });
+      }
+    }
+    return out;
+  },
+});
+
+dash.calc('ranks', {
+  inputs: ['heating_oil', 'diesel', 'unleaded95', 'unleaded100', 'autogas', 'super'],
+  title: 'Prefecture rank on the latest day',
+  description: 'For each fuel on its most recent bulletin day: each prefecture\'s place among those reporting it, cheapest first (1 plus the number strictly cheaper).',
+  fn: (heating_oil, diesel, unleaded95, unleaded100, autogas, superFuel) => {
+    const sets = { heating_oil, diesel, unleaded95, unleaded100, autogas, super: superFuel };
+    const out = [];
+    for (const [fuel, rows] of Object.entries(sets)) {
+      const last = rows[rows.length - 1];
+      const have = Object.keys(last).filter((k) => k !== 'date' && k !== 'national' && last[k] !== '').map((area) => ({ area, v: Number(last[area]) }));
+      for (const r of have) out.push({ fuel, area: r.area, date: last.date, rank: 1 + have.filter((o) => o.v < r.v).length, of: have.length });
+    }
+    return out;
+  },
+});
+
+dash.calc('extremes', {
+  inputs: ['heating_oil', 'diesel', 'unleaded95', 'unleaded100', 'autogas', 'super'],
+  title: 'Cheapest and dearest prefecture',
+  description: 'For each fuel on its most recent bulletin day: the cheapest and the dearest prefecture and their prices.',
+  fn: (heating_oil, diesel, unleaded95, unleaded100, autogas, superFuel) => {
+    const sets = { heating_oil, diesel, unleaded95, unleaded100, autogas, super: superFuel };
+    return Object.entries(sets).map(([fuel, rows]) => {
+      const last = rows[rows.length - 1];
+      const have = Object.keys(last).filter((k) => k !== 'date' && k !== 'national' && last[k] !== '')
+        .map((area) => ({ area, v: Number(last[area]) })).sort((a, b) => a.v - b.v);
+      if (!have.length) return { fuel, date: last.date, cheapest: null, cheapest_price: null, dearest: null, dearest_price: null };
+      return { fuel, date: last.date, cheapest: have[0].area, cheapest_price: have[0].v, dearest: have[have.length - 1].area, dearest_price: have[have.length - 1].v };
+    });
+  },
+});
+
+dash.calc('periods', {
+  inputs: ['heating_oil', 'diesel', 'unleaded95', 'unleaded100', 'autogas', 'super'],
+  title: 'Each season or year',
+  description: 'For each fuel and area: heating oil by heating season (15 Oct to 30 Apr), every other fuel by calendar year, with the first, last, lowest and highest daily price and their dates.',
+  fn: (heating_oil, diesel, unleaded95, unleaded100, autogas, superFuel) => {
+    const sets = { heating_oil, diesel, unleaded95, unleaded100, autogas, super: superFuel };
+    const out = [];
+    for (const [fuel, rows] of Object.entries(sets)) {
+      const areas = Object.keys(rows[0]).filter((k) => k !== 'date');
+      const acc = new Map();
+      for (const r of rows) {
+        const [y, m, d] = r.date.split('-').map(Number);
+        let start = y;
+        if (fuel === 'heating_oil') {
+          const autumn = m > 10 || (m === 10 && d >= 15);
+          if (!autumn && m > 4) continue;
+          start = autumn ? y : y - 1;
+        }
+        for (const area of areas) {
+          if (r[area] === '') continue;
+          const v = Number(r[area]);
+          const key = area + '|' + start;
+          const p = acc.get(key);
+          if (!p) {
+            acc.set(key, {
+              fuel, area, start, period: fuel === 'heating_oil' ? start + '–' + String(start + 1).slice(2) : String(start),
+              days: 1, open: v, open_date: r.date, close: v, close_date: r.date, low: v, low_date: r.date, peak: v, peak_date: r.date,
+            });
+            continue;
+          }
+          p.days += 1;
+          p.close = v;
+          p.close_date = r.date;
+          if (v < p.low) { p.low = v; p.low_date = r.date; }
+          if (v > p.peak) { p.peak = v; p.peak_date = r.date; }
+        }
+      }
+      out.push(...acc.values());
+    }
+    return out;
+  },
+});
+
+dash.calc('outlook', {
+  inputs: ['forecast'],
+  title: 'Outlook in cents, with likely range',
+  description: 'The forecast in cents per litre for each area and fuel, the price likely in 14 days (expected change give or take the typical forecast error), and a reading: flat when the expected change is smaller than its typical error.',
+  fn: (forecast) => forecast.map((r) => {
+    const pump = Number(r.pump);
+    const c7 = Number(r.change_7);
+    const c14 = Number(r.change_14);
+    const e7 = Number(r.mae_7);
+    const e14 = Number(r.mae_14);
+    const signal = Math.abs(c14) > e14 ? c14 : Math.abs(c7) > e7 ? c7 : 0;
+    const cents = (v) => Math.round(v * 1000) / 10;
+    return {
+      area: r.area, fuel: r.fuel, date: r.date, pump,
+      change_7_c: cents(c7), mae_7_c: cents(e7), change_14_c: cents(c14), mae_14_c: cents(e14),
+      mae_naive_7_c: cents(Number(r.mae_naive_7)),
+      hit_7: Number(r.hit_7), hit_momentum_7: Number(r.hit_momentum_7),
+      low_14: Math.round((pump + c14 - e14) * 1000) / 1000,
+      high_14: Math.round((pump + c14 + e14) * 1000) / 1000,
+      reading: signal > 0 ? 'Likely up' : signal < 0 ? 'Likely down' : c14 >= 0 ? 'Flat to slightly up' : 'Flat to slightly down',
+    };
+  }),
+});
+
+dash.calc('coverage', {
+  inputs: ['diesel'],
+  title: 'Days covered',
+  description: 'First and last bulletin day in the data, and how many days have a bulletin.',
+  fn: (diesel) => [{ first: diesel[0].date, last: diesel[diesel.length - 1].date, days: diesel.length }],
+});
+</script>
+
+<script>
+(() => {
+  const FUELS = [
+    { key: 'heating_oil', name: 'Heating oil', color: 'var(--cds-chart-categorical-1)' },
+    { key: 'diesel', name: 'Diesel', color: 'var(--cds-chart-categorical-2)' },
+    { key: 'unleaded95', name: 'Unleaded 95', color: 'var(--cds-chart-categorical-3)' },
+    { key: 'unleaded100', name: 'Unleaded 100', color: 'var(--cds-chart-categorical-4)' },
+    { key: 'autogas', name: 'Autogas', color: 'var(--cds-chart-categorical-5)' },
+    { key: 'super', name: 'Super', color: 'var(--cds-chart-categorical-6)' },
+  ];
+  const FUEL = Object.fromEntries(FUELS.map((f) => [f.key, f]));
+  const NATIONAL = 'national';
+  const areaName = (a) => (a === NATIONAL ? 'Greece (national average)' : a);
+  const areaShort = (a) => (a === NATIONAL ? 'Greece' : a);
+
+  const loc = d3.formatLocale({ decimal: ',', thousands: '.', grouping: [3], currency: ['', ' €'] });
+  const fmtPrice = loc.format('.3f');
+  const fmtTick = loc.format('.2f');
+  const fmtPct = loc.format('+.0%');
+  const fmtDate = d3.utcFormat('%-d %b %Y');
+  const fmtDay = d3.utcFormat('%-d %b');
+  const parseDay = (s) => new Date(s + 'T00:00:00Z');
+  const DAY = 864e5;
+  const GAP_DAYS = 3;
+  const RANGE_DAYS = { '1m': 30, '3m': 91, '1y': 365, '3y': 1096 };
+  const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'));
+
+  const hidden = new Set(['super']);
+  let sort = { col: null, dir: 'ascending' };
+  const cache = {};
+
+  const params = () => {
+    const p = dash.params();
+    return { area: p.area || 'Αττική', fuel: FUEL[p.fuel] ? p.fuel : 'heating_oil', range: RANGE_DAYS[p.range] || p.range === 'all' ? p.range || 'all' : 'all' };
+  };
+
+  // ---- data -------------------------------------------------------------------
+  // Per fuel: dates and one Float64Array per area (NaN where the bulletin had no price).
+  const series = (fuel) => {
+    const st = dash.data(fuel);
+    if (st.status !== 'ok') return null;
+    if (cache[fuel] && cache[fuel].src === st.data) return cache[fuel];
+    const rows = st.data;
+    const areas = Object.keys(rows[0] || {}).filter((k) => k !== 'date');
+    const days = rows.map((r) => parseDay(r.date));
+    const col = {};
+    for (const a of areas) {
+      const arr = new Float64Array(rows.length);
+      for (let i = 0; i < rows.length; i++) arr[i] = rows[i][a] === '' ? NaN : Number(rows[i][a]);
+      col[a] = arr;
+    }
+    cache[fuel] = { src: rows, days, col, areas };
+    return cache[fuel];
+  };
+
+  // Points with a break (null) wherever consecutive prices are more than GAP_DAYS apart.
+  const segment = (pts) => {
+    const out = [];
+    let prev = null;
+    for (const p of pts) {
+      if (prev && (p.date - prev.date) / DAY > GAP_DAYS) out.push(null);
+      out.push(p);
+      prev = p;
+    }
+    return out;
+  };
+
+  const statusOf = (ids) => {
+    const s = ids.map((id) => dash.data(id).status);
+    if (s.every((x) => x === 'ok')) return 'ok';
+    if (s.includes('error')) return 'error';
+    return 'loading';
+  };
+
+  // ---- shared drawing helpers ---------------------------------------------------
+  const message = (box, cls, text) => {
+    const d = document.createElement('div');
+    d.className = cls;
+    d.textContent = text;
+    box.replaceChildren(d);
+  };
+  const measure = (svg, texts, cls) => {
+    const g = svg.append('g').attr('class', cls).attr('opacity', 0);
+    const w = texts.map((t) => g.append('text').text(t).node().getComputedTextLength());
+    g.remove();
+    return w.length ? Math.max(...w) : 0;
+  };
+  const spread = (items, gap, top, bottom) => {
+    items.sort((a, b) => a.y - b.y);
+    for (let pass = 0; pass < 60; pass++) {
+      let moved = false;
+      for (let i = 1; i < items.length; i++) {
+        const d = items[i].ly - items[i - 1].ly;
+        if (d < gap) {
+          items[i - 1].ly -= (gap - d) / 2;
+          items[i].ly += (gap - d) / 2;
+          moved = true;
+        }
+      }
+      for (const it of items) it.ly = Math.min(bottom, Math.max(top, it.ly));
+      if (!moved) break;
+    }
+    return items;
+  };
+  const newSvg = (box, height) => {
+    box.querySelector('svg')?.remove();
+    box.querySelector('.fp-empty, .fp-failed')?.remove();
+    const width = box.clientWidth || 600;
+    const svg = d3.create('svg').attr('width', '100%').attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
+    box.prepend(svg.node());
+    return { svg, width };
+  };
+  const yAxis = (svg, y, ticks, left, right, width) => {
+    svg.append('g').attr('class', 'fp-grid').selectAll('line').data(ticks).join('line')
+      .attr('x1', left).attr('x2', width - right).attr('y1', (t) => y(t)).attr('y2', (t) => y(t));
+    svg.append('g').attr('class', 'fp-axis').selectAll('text').data(ticks).join('text')
+      .attr('x', left - 8).attr('y', (t) => y(t)).attr('dy', '0.32em').attr('text-anchor', 'end').text(fmtTick);
+  };
+  const tooltip = (box) => {
+    let tip = box.querySelector('.fp-tip');
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.className = 'fp-tip';
+      tip.hidden = true;
+      box.appendChild(tip);
+    }
+    return tip;
+  };
+  const fillTip = (tip, title, rows) => {
+    const head = document.createElement('div');
+    head.className = 'fp-tip-date';
+    head.textContent = title;
+    tip.replaceChildren(head, ...rows.map((r) => {
+      const row = document.createElement('div');
+      row.className = 'fp-tip-row' + (r.dim ? ' fp-dim' : '');
+      const key = document.createElement('span');
+      key.className = 'fp-key' + (r.box ? ' fp-box' : '');
+      key.style.setProperty('--k', r.color);
+      const name = document.createElement('span');
+      name.textContent = r.name;
+      const val = document.createElement('span');
+      val.className = 'fp-tv';
+      val.textContent = r.value;
+      row.append(key, name, val);
+      return row;
+    }));
+  };
+  const placeTip = (tip, x, width) => {
+    tip.hidden = false;
+    const w = tip.offsetWidth;
+    let left = x + 14;
+    if (left + w > width) left = x - 14 - w;
+    tip.style.transform = `translate(${Math.max(0, left)}px, 4px)`;
+  };
+  const legendItems = (el, items) => {
+    el.replaceChildren(...items.map((it) => {
+      const s = document.createElement('span');
+      s.className = 'fp-li';
+      const k = document.createElement('span');
+      k.className = 'fp-key' + (it.box ? ' fp-box' : '');
+      k.style.setProperty('--k', it.color);
+      s.append(k, document.createTextNode(it.text));
+      return s;
+    }));
+  };
+  const endLabel = (g, x, y, anchor, name, val) => {
+    const t = g.append('text').attr('class', 'fp-endlabel').attr('x', x).attr('y', y).attr('dy', '0.32em').attr('text-anchor', anchor);
+    t.append('tspan').text(name + '  ');
+    t.append('tspan').attr('class', 'fp-v').text(val);
+  };
+  const dot = (g, x, y, color) => g.append('circle').attr('cx', x).attr('cy', y).attr('r', 4)
+    .style('fill', color).style('stroke', 'var(--color-panel)').attr('stroke-width', 2);
+  const crosshair = (box, svg, { left, right, width, height, onMove, step }) => {
+    const rule = svg.append('line').attr('class', 'fp-rule').attr('y1', 8).attr('y2', height - 26).attr('visibility', 'hidden');
+    const dots = svg.append('g');
+    const tip = tooltip(box);
+    let at = null;
+    const show = (i) => {
+      const r = onMove(i);
+      if (!r) { hide(); return; }
+      at = r.i;
+      rule.attr('x1', r.x).attr('x2', r.x).attr('visibility', 'visible');
+      dots.selectAll('circle').data(r.dots).join('circle').attr('r', 4).attr('cx', r.x).attr('cy', (d) => d.y)
+        .style('fill', (d) => d.color).style('stroke', 'var(--color-panel)').attr('stroke-width', 2);
+      fillTip(tip, r.title, r.rows);
+      placeTip(tip, r.x, width);
+    };
+    const hide = () => { rule.attr('visibility', 'hidden'); dots.selectAll('circle').remove(); tip.hidden = true; at = null; };
+    svg.append('rect').attr('x', left).attr('y', 0).attr('width', Math.max(0, width - right - left)).attr('height', height)
+      .attr('fill', 'transparent')
+      .on('pointermove', (e) => show(step.fromX(d3.pointer(e)[0])))
+      .on('pointerleave', hide);
+    box.onkeydown = (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        show(step.next(at, e.key === 'ArrowRight' ? 1 : -1));
+      } else if (e.key === 'Escape') hide();
+    };
+    box.onblur = hide;
+  };
+
+  // ---- controls -------------------------------------------------------------------
+  const areaSel = document.getElementById('area-select');
+  const fuelSel = document.getElementById('fuel-select');
+  areaSel.addEventListener('change', () => dash.setParams({ area: areaSel.value }));
+  fuelSel.addEventListener('change', () => { sort = { col: null, dir: 'ascending' }; dash.setParams({ fuel: fuelSel.value }); });
+  document.getElementById('range-seg').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-value]');
+    if (b) dash.setParams({ range: b.dataset.value });
+  });
+  for (const t of document.querySelectorAll('.fp-tile')) {
+    t.addEventListener('click', () => { sort = { col: null, dir: 'ascending' }; dash.setParams({ fuel: t.dataset.fuel }); });
+  }
+  const syncControls = ({ area, fuel, range }) => {
+    const latest = dash.data('latest');
+    if (latest.status === 'ok' && areaSel.options.length !== latest.data.length) {
+      const areas = latest.data.map((r) => r.area).filter((a) => a !== NATIONAL).sort((a, b) => a.localeCompare(b, 'el'));
+      areaSel.replaceChildren(new Option(areaName(NATIONAL), NATIONAL), ...areas.map((a) => new Option(a, a)));
+    }
+    if (areaSel.value !== area) areaSel.value = area;
+    fuelSel.value = fuel;
+    for (const b of document.querySelectorAll('#range-seg button')) b.setAttribute('aria-pressed', String(b.dataset.value === range));
+    for (const t of document.querySelectorAll('.fp-tile')) t.setAttribute('aria-pressed', String(t.dataset.fuel === fuel));
+  };
+
+  // ---- headline marks ---------------------------------------------------------------
+  const setPump = (el, v) => {
+    const s = fmtPrice(v);
+    const mil = document.createElement('span');
+    mil.className = 'fp-mil';
+    mil.textContent = s.slice(-1);
+    el.replaceChildren(document.createTextNode(s.slice(0, -1)), mil);
+  };
+  const show = (el, v, kind) => {
+    if (v == null) { el.textContent = '—'; return; }
+    if (kind === 'pump') setPump(el, v);
+    else if (kind === 'price') el.textContent = fmtPrice(v);
+    else if (kind === 'date') el.textContent = fmtDate(parseDay(v));
+    else if (kind === 'pct') el.textContent = fmtPct(v);
+    else if (kind === 'ordinal') el.textContent = ordinal(v);
+    else if (kind === 'delta') {
+      el.textContent = (v > 0 ? '▲ ' : v < 0 ? '▼ ' : '') + fmtPct(v);
+      el.className = v > 0 ? 'fp-up' : v < 0 ? 'fp-down' : '';
+    } else el.textContent = String(v);
+  };
+  const mark = (el, st, where, find) => {
+    el.dataset.where = where;
+    el.classList.toggle('dash-skeleton', st.status === 'loading');
+    const row = st.status === 'ok' ? find(st.data) : null;
+    show(el, row ? row[el.dataset.field] : null, el.dataset.kind);
+  };
+  // The period to describe: the last finished one (the latest is still running when it ends on the fuel's last day).
+  const finishedPeriod = (rows, fuel) => {
+    const kp = dash.data('kpis');
+    const lastDay = kp.status === 'ok' ? d3.max(kp.data.filter((r) => r.fuel === fuel), (r) => r.date) : null;
+    const sorted = [...rows].sort((a, b) => a.start - b.start);
+    const last = sorted[sorted.length - 1];
+    const running = last && lastDay && (parseDay(lastDay) - parseDay(last.close_date)) / DAY <= 10;
+    return running ? sorted[sorted.length - 2] : last;
+  };
+
+  const fillMarks = ({ area, fuel }) => {
+    const fname = FUEL[fuel].name;
+    document.querySelector('.fp-area-name').textContent = areaName(area);
+    document.querySelector('.fp-fuel-name').textContent = fname.toLowerCase();
+    document.querySelector('.fp-period-intro').textContent = fuel === 'heating_oil' ? 'Last full season' : 'Last full year';
+    const kpis = dash.data('kpis');
+    for (const el of document.querySelectorAll('#takeaway [data-source="kpis"]')) {
+      mark(el, kpis, `fuel=${fuel}&area=${area}`, (d) => d.find((r) => r.fuel === fuel && r.area === area));
+    }
+    for (const el of document.querySelectorAll('.fp-tile [data-source="kpis"]')) {
+      const f = el.closest('.fp-tile').dataset.fuel;
+      mark(el, kpis, `fuel=${f}&area=${area}`, (d) => d.find((r) => r.fuel === f && r.area === area));
+    }
+    // A rank only exists for a prefecture that reported this fuel on its last bulletin day;
+    // otherwise the clause is hidden and its marks dropped, so nothing claims a row that isn't there.
+    const ranks = dash.data('ranks');
+    const rankRow = ranks.status === 'ok' ? ranks.data.find((r) => r.fuel === fuel && r.area === area) : null;
+    const noRank = area === NATIONAL || (ranks.status === 'ok' && !rankRow);
+    document.querySelector('.fp-rank-clause').hidden = noRank;
+    for (const el of document.querySelectorAll('.fp-m-rank')) {
+      if (noRank) { el.removeAttribute('data-source'); el.removeAttribute('data-where'); el.textContent = '—'; continue; }
+      el.dataset.source = 'ranks';
+      mark(el, ranks, `fuel=${fuel}&area=${area}`, () => rankRow);
+    }
+    const periods = dash.data('periods');
+    const p = periods.status === 'ok' ? finishedPeriod(periods.data.filter((r) => r.fuel === fuel && r.area === area), fuel) : null;
+    for (const el of document.querySelectorAll('[data-source="periods"]')) {
+      mark(el, periods, p ? `fuel=${fuel}&area=${area}&period=${p.period}` : `fuel=${fuel}&area=${area}`, () => p);
+    }
+    document.querySelector('.fp-rank-fuel').textContent = fname.toLowerCase();
+    const ex = dash.data('extremes');
+    for (const el of document.querySelectorAll('[data-source="extremes"]:not(.fp-m-exdate)')) {
+      mark(el, ex, `fuel=${fuel}`, (d) => d.find((r) => r.fuel === fuel));
+    }
+    // Name the day only when it is not the table's day (Super's last bulletin is in 2022).
+    const exRow = ex.status === 'ok' ? ex.data.find((r) => r.fuel === fuel) : null;
+    const latest = dash.data('latest');
+    const tableDay = latest.status === 'ok' && latest.data.length ? latest.data[0].date : null;
+    const otherDay = Boolean(exRow && tableDay && exRow.date !== tableDay);
+    document.querySelector('.fp-ex-when').hidden = !otherDay;
+    const exDate = document.querySelector('.fp-m-exdate');
+    if (otherDay) {
+      exDate.dataset.source = 'extremes';
+      mark(exDate, ex, `fuel=${fuel}`, () => exRow);
+    } else {
+      exDate.removeAttribute('data-source');
+      exDate.removeAttribute('data-where');
+    }
+    for (const el of document.querySelectorAll('[data-source="latest"][data-kind], [data-source="coverage"], [data-source="forecast"][data-kind], [data-source="steo"][data-kind]')) {
+      const st = dash.data(el.dataset.source);
+      el.classList.toggle('dash-skeleton', st.status === 'loading');
+      show(el, st.status === 'ok' && st.data.length ? st.data[0][el.dataset.field] : null, el.dataset.kind);
+    }
+  };
+
+  // ---- 1. chosen fuel in chosen area vs national and the prefecture spread ----------------
+  const drawTrend = ({ area, fuel, range }) => {
+    const box = document.getElementById('trend-chart');
+    const legend = document.getElementById('trend-legend');
+    const f = FUEL[fuel];
+    box.dataset.source = fuel;
+    document.getElementById('trend-title').textContent = `${f.name} in ${areaShort(area)}`;
+    const st = statusOf([fuel, 'diesel']);
+    box.classList.toggle('dash-skeleton', st === 'loading');
+    if (st !== 'ok') { box.replaceChildren(); legend.replaceChildren(); if (st === 'error') message(box, 'fp-failed', 'Failed to load'); return; }
+    const s = series(fuel);
+    const end = series('diesel').days.at(-1);
+    const start = range === 'all' ? s.days[0] : new Date(end - RANGE_DAYS[range] * DAY);
+    const prefs = s.areas.filter((a) => a !== NATIONAL);
+    const pts = [];
+    for (let i = 0; i < s.days.length; i++) {
+      if (s.days[i] < start) continue;
+      let lo = Infinity, hi = -Infinity, loA = null, hiA = null;
+      for (const a of prefs) {
+        const v = s.col[a][i];
+        if (Number.isNaN(v)) continue;
+        if (v < lo) { lo = v; loA = a; }
+        if (v > hi) { hi = v; hiA = a; }
+      }
+      if (loA === null) continue;
+      pts.push({ date: s.days[i], v: s.col[area] ? s.col[area][i] : NaN, nat: s.col[NATIONAL][i], lo, hi, loA, hiA });
+    }
+    const own = pts.filter((p) => !Number.isNaN(p.v));
+    if (!own.length) {
+      legend.replaceChildren();
+      box.querySelector('svg')?.remove();
+      message(box, 'fp-empty', `No ${f.name.toLowerCase()} prices for ${areaName(area)} in this period.`);
+      return;
+    }
+    const isNat = area === NATIONAL;
+    legendItems(legend, [
+      { color: f.color, text: areaName(area) },
+      ...(isNat ? [] : [{ color: 'var(--color-fg-secondary)', text: 'Greece (national average)' }]),
+      { color: f.color, box: true, text: 'Cheapest to dearest prefecture' },
+    ]);
+
+    const height = 320;
+    const { svg, width } = newSvg(box, height);
+    const y = d3.scaleLinear([d3.min(pts, (p) => p.lo), d3.max(pts, (p) => p.hi)], [height - 26, 8]).nice();
+    const ticks = y.ticks(6);
+    const left = measure(svg, ticks.map(fmtTick), 'fp-axis') + 10;
+    const lastOwn = own.at(-1);
+    const lastNat = [...pts].reverse().find((p) => !Number.isNaN(p.nat));
+    const ends = [{ name: areaShort(area), v: lastOwn.v, date: lastOwn.date, color: f.color }];
+    if (!isNat && lastNat) ends.push({ name: 'Greece', v: lastNat.nat, date: lastNat.date, color: 'var(--color-fg-secondary)' });
+    const right = measure(svg, ends.map((e) => `${e.name}  ${fmtPrice(e.v)}`), 'fp-endlabel') + 22;
+    const x = d3.scaleUtc([pts[0].date < start ? start : d3.min(pts, (p) => p.date), end], [left, width - right]);
+    yAxis(svg, y, ticks, left, right, width);
+    const span = (end - x.domain()[0]) / DAY;
+    const xFmt = span > 800 ? d3.utcFormat('%Y') : span > 120 ? d3.utcFormat('%b %Y') : d3.utcFormat('%-d %b');
+    svg.append('g').attr('class', 'fp-axis').selectAll('text').data(x.ticks(Math.max(2, Math.floor((width - left - right) / 90)))).join('text')
+      .attr('x', (t) => x(t)).attr('y', height - 6).attr('text-anchor', 'middle').text(xFmt);
+
+    const band = d3.area().defined((p) => p != null).x((p) => x(p.date)).y0((p) => y(p.lo)).y1((p) => y(p.hi));
+    svg.append('path').attr('d', band(segment(pts))).style('fill', f.color).attr('fill-opacity', 0.14);
+    const line = d3.line().defined((p) => p != null).x((p) => x(p.date));
+    if (!isNat) {
+      svg.append('path').attr('fill', 'none').style('stroke', 'var(--color-fg-secondary)').attr('stroke-width', 1.5).attr('stroke-linejoin', 'round')
+        .attr('d', line.y((p) => y(p.nat))(segment(pts.filter((p) => !Number.isNaN(p.nat)))));
+    }
+    svg.append('path').attr('fill', 'none').style('stroke', f.color).attr('stroke-width', 2).attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round')
+      .attr('d', line.y((p) => y(p.v))(segment(own)));
+
+    const xe = width - right;
+    const eg = svg.append('g');
+    for (const e of spread(ends.map((e) => ({ ...e, y: y(e.v), ly: y(e.v) })), 15, 8, height - 26)) {
+      dot(eg, x(e.date), e.y, e.color);
+      eg.append('path').attr('class', 'fp-leader').attr('d', `M${x(e.date) + 5},${e.y} L${xe + 6},${e.ly} L${xe + 10},${e.ly}`);
+      endLabel(eg, xe + 12, e.ly, 'start', e.name, fmtPrice(e.v));
+    }
+    const bis = d3.bisector((p) => p.date).center;
+    crosshair(box, svg, {
+      left, right, width, height,
+      step: { fromX: (px) => bis(pts, x.invert(px)), next: (i, d) => (i ?? pts.length - 1) + d },
+      onMove: (i) => {
+        if (i < 0 || i >= pts.length) return null;
+        const p = pts[i];
+        const rows = [];
+        const dots = [];
+        if (!Number.isNaN(p.v)) { rows.push({ name: areaShort(area), value: fmtPrice(p.v), color: f.color }); dots.push({ y: y(p.v), color: f.color }); }
+        if (!isNat && !Number.isNaN(p.nat)) { rows.push({ name: 'Greece', value: fmtPrice(p.nat), color: 'var(--color-fg-secondary)' }); dots.push({ y: y(p.nat), color: 'var(--color-fg-secondary)' }); }
+        rows.push({ name: `Cheapest: ${p.loA}`, value: fmtPrice(p.lo), color: f.color, box: true, dim: true });
+        rows.push({ name: `Dearest: ${p.hiA}`, value: fmtPrice(p.hi), color: f.color, box: true, dim: true });
+        return { i, x: x(p.date), title: fmtDate(p.date), rows, dots };
+      },
+    });
+  };
+
+  // ---- 2. season by season (heating oil) or year by year (everything else) --------------------
+  const drawPeriods = ({ area, fuel }) => {
+    const box = document.getElementById('period-chart');
+    const legend = document.getElementById('period-legend');
+    const f = FUEL[fuel];
+    const heating = fuel === 'heating_oil';
+    box.dataset.source = fuel;
+    document.getElementById('period-title').textContent = `${f.name} in ${areaShort(area)}, ${heating ? 'season by season' : 'year by year'}`;
+    document.getElementById('period-note').textContent = heating
+      ? 'Each line is one heating season, 15 October to 30 April. The Period buttons do not apply here: every season in the data is shown.'
+      : 'Each line is one calendar year. The Period buttons do not apply here: every year in the data is shown.';
+    const st = statusOf([fuel]);
+    box.classList.toggle('dash-skeleton', st === 'loading');
+    if (st !== 'ok') { box.replaceChildren(); legend.replaceChildren(); if (st === 'error') message(box, 'fp-failed', 'Failed to load'); return; }
+    const s = series(fuel);
+    const col = s.col[area];
+    const groups = new Map();
+    for (let i = 0; col && i < s.days.length; i++) {
+      const v = col[i];
+      if (Number.isNaN(v)) continue;
+      const dt = s.days[i];
+      const yr = dt.getUTCFullYear();
+      let start = yr;
+      let origin;
+      if (heating) {
+        const m = dt.getUTCMonth() + 1;
+        const autumn = m > 10 || (m === 10 && dt.getUTCDate() >= 15);
+        if (!autumn && m > 4) continue;
+        start = autumn ? yr : yr - 1;
+        origin = Date.UTC(start, 9, 15);
+      } else origin = Date.UTC(yr, 0, 1);
+      if (!groups.has(start)) groups.set(start, []);
+      groups.get(start).push({ date: dt, idx: Math.round((dt - origin) / DAY), v });
+    }
+    const starts = [...groups.keys()].sort((a, b) => a - b);
+    if (starts.length < 2) {
+      legend.replaceChildren();
+      box.querySelector('svg')?.remove();
+      message(box, 'fp-empty', `Not enough ${f.name.toLowerCase()} prices for ${areaName(area)} to compare ${heating ? 'seasons' : 'years'}.`);
+      return;
+    }
+    const label = (st0) => (heating ? st0 + '–' + String(st0 + 1).slice(2) : String(st0));
+    const cur = starts.at(-1);
+    const prev = starts.at(-2);
+    const running = (s.days.at(-1) - groups.get(cur).at(-1).date) / DAY <= 10 && (heating || cur === s.days.at(-1).getUTCFullYear());
+    const style = (k) => (k === cur ? { color: f.color, width: 2.5, dim: false }
+      : k === prev ? { color: 'var(--color-fg-secondary)', width: 2, dim: false }
+        : { color: 'var(--cds-chart-muted)', width: 1.25, dim: true });
+    const curDays = groups.get(cur).length;
+    const word = heating ? 'season' : 'year';
+    const items = [
+      { color: style(cur).color, text: running ? `${label(cur)}, this ${word} (${curDays} ${curDays === 1 ? 'day' : 'days'} so far)` : `${label(cur)}, latest ${word}` },
+      { color: style(prev).color, text: `${label(prev)}, the ${word} before` },
+    ];
+    if (starts.length > 2) items.push({ color: 'var(--cds-chart-muted)', text: starts.length > 3 ? `${label(starts[0])} to ${label(starts.at(-3))}` : label(starts[0]) });
+    legendItems(legend, items);
+
+    const height = 300;
+    const { svg, width } = newSvg(box, height);
+    const all = starts.flatMap((k) => groups.get(k));
+    const y = d3.scaleLinear([d3.min(all, (p) => p.v), d3.max(all, (p) => p.v)], [height - 26, 8]).nice();
+    const ticks = y.ticks(5);
+    const left = measure(svg, ticks.map(fmtTick), 'fp-axis') + 10;
+    const prevLast = groups.get(prev).at(-1);
+    const curLast = groups.get(cur).at(-1);
+    const right = measure(svg, [`${label(prev)}  ${fmtPrice(prevLast.v)}`, `${label(cur)}  ${fmtPrice(curLast.v)}`], 'fp-endlabel') + 14;
+    const maxIdx = heating ? 198 : 365;
+    const x = d3.scaleLinear([0, maxIdx], [left, width - right]);
+    yAxis(svg, y, ticks, left, right, width);
+    const months = heating
+      ? [[0, '15 Oct'], [17, 'Nov'], [47, 'Dec'], [78, 'Jan'], [109, 'Feb'], [137, 'Mar'], [168, 'Apr']]
+      : [[0, 'Jan'], [31, 'Feb'], [59, 'Mar'], [90, 'Apr'], [120, 'May'], [151, 'Jun'], [181, 'Jul'], [212, 'Aug'], [243, 'Sep'], [273, 'Oct'], [304, 'Nov'], [334, 'Dec']];
+    const keep = width < 520 ? months.filter((_, i) => i % 2 === 0) : months;
+    svg.append('g').attr('class', 'fp-axis').selectAll('text').data(keep).join('text')
+      .attr('x', (m) => x(m[0])).attr('y', height - 6).attr('text-anchor', (m) => (m[0] === 0 ? 'start' : 'middle')).text((m) => m[1]);
+
+    const line = d3.line().defined((p) => p != null).x((p) => x(p.idx)).y((p) => y(p.v));
+    const order = [...starts.filter((k) => k !== cur && k !== prev), prev, cur];
+    svg.append('g').selectAll('path').data(order).join('path')
+      .attr('fill', 'none').attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round')
+      .style('stroke', (k) => style(k).color).attr('stroke-width', (k) => style(k).width)
+      .attr('d', (k) => line(segment(groups.get(k))));
+
+    const prevPeak = groups.get(prev).reduce((a, b) => (b.v > a.v ? b : a));
+    const g = svg.append('g');
+    dot(g, x(prevLast.idx), y(prevLast.v), style(prev).color);
+    dot(g, x(prevPeak.idx), y(prevPeak.v), style(prev).color);
+    dot(g, x(curLast.idx), y(curLast.v), style(cur).color);
+    endLabel(g, x(prevLast.idx) + 8, y(prevLast.v), 'start', label(prev), fmtPrice(prevLast.v));
+    if (prevPeak !== prevLast) {
+      const nearEnd = x(prevLast.idx) - x(prevPeak.idx) < 40 && Math.abs(y(prevLast.v) - y(prevPeak.v)) < 16;
+      if (!nearEnd) endLabel(g, x(prevPeak.idx) - 8, y(prevPeak.v) - 2, 'end', `Peak ${fmtDay(prevPeak.date)}`, fmtPrice(prevPeak.v));
+    }
+    const curY = y(curLast.v);
+    const clash = Math.abs(x(curLast.idx) - x(prevLast.idx)) < 60 && Math.abs(curY - y(prevLast.v)) < 16;
+    if (!clash) {
+      const above = curY - 14 > 8;
+      endLabel(g, x(curLast.idx) + 8, above ? curY - 12 : curY + 14, 'start', label(cur), fmtPrice(curLast.v));
+    }
+
+    const origin = heating ? Date.UTC(2025, 9, 15) : Date.UTC(2025, 0, 1);
+    crosshair(box, svg, {
+      left, right, width, height,
+      step: { fromX: (px) => Math.round(x.invert(px)), next: (i, d) => (i ?? curLast.idx) + d },
+      onMove: (i) => {
+        if (i < 0 || i > maxIdx) return null;
+        const rows = [];
+        const dots = [];
+        for (const k of [...starts].reverse()) {
+          const p = groups.get(k).find((q) => q.idx === i);
+          if (!p) continue;
+          const stl = style(k);
+          rows.push({ name: label(k), value: fmtPrice(p.v), color: stl.color, dim: stl.dim });
+          if (!stl.dim) dots.push({ y: y(p.v), color: stl.color });
+        }
+        if (!rows.length) return null;
+        return { i, x: x(i), title: fmtDay(new Date(origin + i * DAY)), rows, dots };
+      },
+    });
+  };
+
+  // ---- 3. every fuel in the chosen area ------------------------------------------------
+  const drawHistory = ({ area, range }) => {
+    const box = document.getElementById('history-chart');
+    const legend = document.getElementById('history-legend');
+    document.getElementById('history-title').textContent = `Every fuel in ${areaShort(area)}`;
+    const st = statusOf(FUELS.map((f) => f.key));
+    box.classList.toggle('dash-skeleton', st === 'loading');
+    if (st !== 'ok') { box.replaceChildren(); legend.replaceChildren(); if (st === 'error') message(box, 'fp-failed', 'Failed to load'); return; }
+    const end = series('diesel').days.at(-1);
+    const start = range === 'all' ? series('diesel').days[0] : new Date(end - RANGE_DAYS[range] * DAY);
+    const lines = FUELS.map((f) => {
+      const s = series(f.key);
+      const col = s.col[area];
+      const pts = [];
+      for (let i = 0; col && i < s.days.length; i++) {
+        if (s.days[i] >= start && !Number.isNaN(col[i])) pts.push({ date: s.days[i], v: col[i] });
+      }
+      return { f, pts };
+    }).filter((l) => l.pts.length);
+    const visible = lines.filter((l) => !hidden.has(l.f.key));
+
+    legend.replaceChildren(...lines.map(({ f }) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(!hidden.has(f.key)));
+      const k = document.createElement('span');
+      k.className = 'fp-key';
+      k.style.setProperty('--k', f.color);
+      b.append(k, document.createTextNode(f.name));
+      if (f.key === 'super') {
+        const a = document.createElement('span');
+        a.className = 'fp-aside';
+        a.textContent = '(few stations)';
+        b.append(a);
+      }
+      b.addEventListener('click', () => {
+        if (hidden.has(f.key)) hidden.delete(f.key); else hidden.add(f.key);
+        drawHistory(params());
+      });
+      return b;
+    }));
+    if (!visible.length) {
+      box.querySelector('svg')?.remove();
+      message(box, 'fp-empty', 'Every fuel is hidden. Click one above to show it.');
+      return;
+    }
+
+    const height = 320;
+    const { svg, width } = newSvg(box, height);
+    const vals = visible.flatMap((l) => l.pts.map((p) => p.v));
+    const y = d3.scaleLinear(d3.extent(vals), [height - 26, 8]).nice();
+    const ticks = y.ticks(6);
+    const left = measure(svg, ticks.map(fmtTick), 'fp-axis') + 10;
+    const ends = visible.map((l) => ({ f: l.f, p: l.pts.at(-1) })).filter((e) => (end - e.p.date) / DAY <= 10);
+    const right = measure(svg, ends.map((e) => `${e.f.name}  ${fmtPrice(e.p.v)}`), 'fp-endlabel') + 22;
+    const x = d3.scaleUtc([start, end], [left, width - right]);
+    yAxis(svg, y, ticks, left, right, width);
+    const span = (end - start) / DAY;
+    const xFmt = span > 800 ? d3.utcFormat('%Y') : span > 120 ? d3.utcFormat('%b %Y') : d3.utcFormat('%-d %b');
+    svg.append('g').attr('class', 'fp-axis').selectAll('text').data(x.ticks(Math.max(2, Math.floor((width - left - right) / 90)))).join('text')
+      .attr('x', (t) => x(t)).attr('y', height - 6).attr('text-anchor', 'middle').text(xFmt);
+
+    const line = d3.line().defined((p) => p != null).x((p) => x(p.date)).y((p) => y(p.v));
+    svg.append('g').selectAll('path').data([...visible].reverse()).join('path')
+      .attr('fill', 'none').attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round')
+      .style('stroke', (l) => l.f.color).attr('stroke-width', 2)
+      .attr('d', (l) => line(segment(l.pts)));
+
+    const xe = width - right;
+    const eg = svg.append('g');
+    for (const e of spread(ends.map((e) => ({ ...e, y: y(e.p.v), ly: y(e.p.v) })), 15, 8, height - 26)) {
+      dot(eg, x(e.p.date), e.y, e.f.color);
+      eg.append('path').attr('class', 'fp-leader').attr('d', `M${x(e.p.date) + 5},${e.y} L${xe + 6},${e.ly} L${xe + 10},${e.ly}`);
+      endLabel(eg, xe + 12, e.ly, 'start', e.f.name, fmtPrice(e.p.v));
+    }
+
+    // Crosshair snaps to bulletin days (diesel is reported every day there is a bulletin).
+    const days = series('diesel').days.filter((d) => d >= start);
+    const bis = d3.bisector((d) => d).center;
+    const lookup = visible.map((l) => ({ l, at: new Map(l.pts.map((p) => [+p.date, p.v])) }));
+    crosshair(box, svg, {
+      left, right, width, height,
+      step: { fromX: (px) => bis(days, x.invert(px)), next: (i, d) => (i ?? days.length - 1) + d },
+      onMove: (i) => {
+        if (i < 0 || i >= days.length) return null;
+        const day = days[i];
+        const rows = lookup.map(({ l, at }) => ({ l, v: at.get(+day) })).filter((r) => r.v != null).sort((a, b) => b.v - a.v);
+        if (!rows.length) return null;
+        return {
+          i, x: x(day), title: fmtDate(day),
+          rows: rows.map((r) => ({ name: r.l.f.name, value: fmtPrice(r.v), color: r.l.f.color })),
+          dots: rows.map((r) => ({ y: y(r.v), color: r.l.f.color })),
+        };
+      },
+    });
+  };
+
+  // ---- 4. prefecture table ---------------------------------------------------------------
+  const table = document.getElementById('pref-table');
+  table.querySelector('thead').addEventListener('click', (e) => {
+    const b = e.target.closest('.fp-sort');
+    if (!b) return;
+    const current = sort.col || params().fuel;
+    sort = { col: b.dataset.col, dir: current === b.dataset.col && sort.dir === 'ascending' ? 'descending' : 'ascending' };
+    drawTable(params());
+  });
+  table.querySelector('tbody').addEventListener('click', (e) => {
+    const tr = e.target.closest('tr[data-key]');
+    if (tr) dash.setParams({ area: tr.dataset.key });
+  });
+  table.querySelector('tbody').addEventListener('keydown', (e) => {
+    const tr = e.target.closest('tr[data-key]');
+    if (tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); dash.setParams({ area: tr.dataset.key }); }
+  });
+  const drawTable = ({ area, fuel }) => {
+    const st = dash.data('latest');
+    const body = table.querySelector('tbody');
+    const cols = ['heating_oil', 'diesel', 'unleaded95', 'unleaded100', 'autogas'];
+    const col = sort.col || (cols.includes(fuel) ? fuel : 'heating_oil');
+    const dir = sort.col ? sort.dir : 'ascending';
+    for (const th of table.querySelectorAll('th')) th.setAttribute('aria-sort', th.dataset.field === col ? dir : 'none');
+    if (st.status !== 'ok') { body.replaceChildren(); return; }
+    const sign = dir === 'ascending' ? 1 : -1;
+    const rows = [...st.data].sort((a, b) => {
+      if (col === 'area') return sign * areaName(a.area).localeCompare(areaName(b.area), 'el');
+      if (a[col] == null) return 1;
+      if (b[col] == null) return -1;
+      return sign * (a[col] - b[col]);
+    });
+    body.replaceChildren(...rows.map((r) => {
+      const tr = document.createElement('tr');
+      tr.dataset.key = r.area;
+      tr.tabIndex = 0;
+      tr.className = [r.area === area ? 'fp-picked' : '', r.area === NATIONAL ? 'fp-national' : ''].join(' ').trim();
+      const name = document.createElement('td');
+      name.textContent = areaName(r.area);
+      tr.append(name, ...cols.map((c) => {
+        const td = document.createElement('td');
+        td.textContent = r[c] == null ? '' : fmtPrice(r[c]);
+        if (c === col) td.className = 'fp-sorted';
+        return td;
+      }));
+      return tr;
+    }));
+  };
+
+  // ---- Outlook ---------------------------------------------------------------------------
+  const MODELLED = ['heating_oil', 'diesel', 'unleaded95', 'unleaded100'];
+  const fmtCents = loc.format('+.1f');
+  const fmtErr = loc.format('.1f');
+  const fmtShare = loc.format('.0%');
+  const outlookTable = document.getElementById('outlook-table');
+  let chainCache = { src: null };
+
+  const notModelled = (box, legend, fuel) => {
+    legend.replaceChildren();
+    box.querySelector('svg')?.remove();
+    message(box, 'fp-empty', `${FUEL[fuel].name} is not covered by the outlook. Pick heating oil, diesel or unleaded.`);
+  };
+
+  const drawOutlookTable = ({ area, fuel }) => {
+    document.getElementById('next-title').textContent = `Next two weeks in ${areaShort(area)}`;
+    const st = dash.data('outlook');
+    const body = outlookTable.querySelector('tbody');
+    outlookTable.classList.toggle('dash-skeleton', st.status === 'loading');
+    if (st.status !== 'ok') { body.replaceChildren(); return; }
+    const rows = MODELLED.map((f) => st.data.find((r) => r.area === area && r.fuel === f)).filter(Boolean);
+    body.replaceChildren(...rows.map((r) => {
+      const tr = document.createElement('tr');
+      tr.dataset.key = `${r.area},${r.fuel}`;
+      if (r.fuel === fuel) tr.className = 'fp-picked';
+      const cells = [
+        [FUEL[r.fuel].name, ''],
+        [fmtPrice(r.pump), ''],
+        [fmtCents(r.change_7_c), ''],
+        [fmtErr(r.mae_7_c), 'fp-pm'],
+        [fmtCents(r.change_14_c), ''],
+        [fmtErr(r.mae_14_c), 'fp-pm'],
+        [fmtPrice(r.low_14), ''],
+        [fmtPrice(r.high_14), ''],
+        [r.reading, 'fp-reading'],
+      ];
+      tr.append(...cells.map(([text, cls]) => {
+        const td = document.createElement('td');
+        td.textContent = text;
+        if (cls) td.className = cls;
+        return td;
+      }));
+      return tr;
+    }));
+    const recFuel = MODELLED.includes(fuel) ? fuel : 'heating_oil';
+    document.querySelector('.fp-rec-fuel').textContent = FUEL[recFuel].name.toLowerCase();
+    document.querySelector('.fp-rec-area').textContent = areaName(area);
+    for (const el of document.querySelectorAll('.fp-m-rec')) {
+      el.classList.toggle('dash-skeleton', false);
+      el.dataset.where = `area=${area}&fuel=${recFuel}`;
+      const row = st.data.find((r) => r.area === area && r.fuel === recFuel);
+      const v = row ? row[el.dataset.field] : null;
+      el.textContent = v == null ? '—' : el.dataset.kind === 'share' ? fmtShare(v) : fmtErr(v);
+    }
+  };
+
+  const chainSeries = () => {
+    const st = dash.data('chain');
+    if (st.status !== 'ok') return null;
+    if (chainCache.src === st.data) return chainCache;
+    const rows = st.data;
+    const days = rows.map((r) => parseDay(r.date));
+    const col = {};
+    for (const k of Object.keys(rows[0] || {}).filter((c) => c !== 'date')) {
+      col[k] = Float64Array.from(rows, (r) => (r[k] === '' || r[k] == null ? NaN : Number(r[k])));
+    }
+    chainCache = { src: rows, days, col };
+    return chainCache;
+  };
+
+  const drawChain = ({ area, fuel, range }) => {
+    const box = document.getElementById('chain-chart');
+    const legend = document.getElementById('chain-legend');
+    document.getElementById('chain-title').textContent = MODELLED.includes(fuel)
+      ? `${FUEL[fuel].name}: from world markets to the pump in ${areaShort(area)}` : 'From world markets to the pump';
+    if (!MODELLED.includes(fuel)) { notModelled(box, legend, fuel); return; }
+    box.dataset.source = `chain ${fuel}`;
+    const st = statusOf(['chain', fuel, 'diesel']);
+    box.classList.toggle('dash-skeleton', st === 'loading');
+    if (st !== 'ok') { box.replaceChildren(); legend.replaceChildren(); if (st === 'error') message(box, 'fp-failed', 'Failed to load'); return; }
+    const ch = chainSeries();
+    const s = series(fuel);
+    const end = series('diesel').days.at(-1);
+    const start = range === 'all' ? ch.days[0] : new Date(end - RANGE_DAYS[range] * DAY);
+    const pumpAt = new Map();
+    const pc = s.col[area];
+    for (let i = 0; pc && i < s.days.length; i++) if (!Number.isNaN(pc[i])) pumpAt.set(+s.days[i], pc[i]);
+    const LINES = [
+      { key: 'intl', name: 'International price + excise + VAT', color: 'var(--cds-chart-reference)', width: 1.5 },
+      { key: 'refinery', name: 'Refinery price + VAT', color: 'var(--color-fg-secondary)', width: 2 },
+      { key: 'pump', name: `Pump, ${areaShort(area)}`, color: FUEL[fuel].color, width: 2.5 },
+    ];
+    const lines = LINES.map((l) => {
+      const pts = [];
+      if (l.key === 'pump') {
+        for (const [t, v] of pumpAt) if (t >= +start && t <= +end) pts.push({ date: new Date(t), v });
+        pts.sort((a, b) => a.date - b.date);
+      } else {
+        const c = ch.col[`${l.key}_${fuel}`];
+        for (let i = 0; i < ch.days.length; i++) if (ch.days[i] >= start && ch.days[i] <= end && !Number.isNaN(c[i])) pts.push({ date: ch.days[i], v: c[i] });
+      }
+      return { ...l, pts };
+    }).filter((l) => l.pts.length);
+    legendItems(legend, lines.map((l) => ({ color: l.color, text: l.name })));
+
+    const height = 320;
+    const { svg, width } = newSvg(box, height);
+    const y = d3.scaleLinear(d3.extent(lines.flatMap((l) => l.pts.map((p) => p.v))), [height - 26, 8]).nice();
+    const ticks = y.ticks(6);
+    const left = measure(svg, ticks.map(fmtTick), 'fp-axis') + 10;
+    const ends = lines.map((l) => ({ l, p: l.pts.at(-1) })).filter((e) => (end - e.p.date) / DAY <= 10);
+    const short = { intl: 'International', refinery: 'Refinery', pump: 'Pump' };
+    const right = measure(svg, ends.map((e) => `${short[e.l.key]}  ${fmtPrice(e.p.v)}`), 'fp-endlabel') + 22;
+    const x = d3.scaleUtc([start, end], [left, width - right]);
+    yAxis(svg, y, ticks, left, right, width);
+    const span = (end - start) / DAY;
+    const xFmt = span > 800 ? d3.utcFormat('%Y') : span > 120 ? d3.utcFormat('%b %Y') : d3.utcFormat('%-d %b');
+    svg.append('g').attr('class', 'fp-axis').selectAll('text').data(x.ticks(Math.max(2, Math.floor((width - left - right) / 90)))).join('text')
+      .attr('x', (t) => x(t)).attr('y', height - 6).attr('text-anchor', 'middle').text(xFmt);
+    const line = d3.line().defined((p) => p != null).x((p) => x(p.date)).y((p) => y(p.v));
+    svg.append('g').selectAll('path').data(lines).join('path')
+      .attr('fill', 'none').attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round')
+      .style('stroke', (l) => l.color).attr('stroke-width', (l) => l.width)
+      .attr('d', (l) => line(segment(l.pts)));
+    const xe = width - right;
+    const eg = svg.append('g');
+    for (const e of spread(ends.map((e) => ({ ...e, y: y(e.p.v), ly: y(e.p.v) })), 15, 8, height - 26)) {
+      dot(eg, x(e.p.date), e.y, e.l.color);
+      eg.append('path').attr('class', 'fp-leader').attr('d', `M${x(e.p.date) + 5},${e.y} L${xe + 6},${e.ly} L${xe + 10},${e.ly}`);
+      endLabel(eg, xe + 12, e.ly, 'start', short[e.l.key], fmtPrice(e.p.v));
+    }
+    const days = ch.days.filter((d) => d >= start && d <= end);
+    const at = lines.map((l) => ({ l, m: new Map(l.pts.map((p) => [+p.date, p.v])) }));
+    const bis = d3.bisector((d) => d).center;
+    crosshair(box, svg, {
+      left, right, width, height,
+      step: { fromX: (px) => bis(days, x.invert(px)), next: (i, d) => (i ?? days.length - 1) + d },
+      onMove: (i) => {
+        if (i < 0 || i >= days.length) return null;
+        const day = days[i];
+        const rows = at.map(({ l, m }) => ({ l, v: m.get(+day) })).filter((r) => r.v != null);
+        if (!rows.length) return null;
+        return {
+          i, x: x(day), title: fmtDate(day),
+          rows: rows.map((r) => ({ name: short[r.l.key], value: fmtPrice(r.v), color: r.l.color })),
+          dots: rows.map((r) => ({ y: y(r.v), color: r.l.color })),
+        };
+      },
+    });
+  };
+
+  const drawLag = ({ fuel }) => {
+    const box = document.getElementById('lag-chart');
+    const legend = document.getElementById('lag-legend');
+    if (!MODELLED.includes(fuel)) { notModelled(box, legend, fuel); return; }
+    document.getElementById('lag-title').textContent = `${FUEL[fuel].name}: how fast a price move reaches the pump`;
+    const st = dash.data('passthrough_curve');
+    box.classList.toggle('dash-skeleton', st.status === 'loading');
+    if (st.status !== 'ok') { box.replaceChildren(); legend.replaceChildren(); if (st.status === 'error') message(box, 'fp-failed', 'Failed to load'); return; }
+    const STAGES = [
+      { key: 'refinery', name: 'Refinery, after an international move', color: 'var(--color-fg-secondary)' },
+      { key: 'pump', name: 'Pump, after a refinery move', color: FUEL[fuel].color },
+    ];
+    const lines = STAGES.map((s) => ({ ...s, pts: st.data.filter((r) => r.fuel === fuel && r.stage === s.key).map((r) => ({ d: Number(r.day), v: Number(r.share) })) }));
+    legendItems(legend, lines.map((l) => ({ color: l.color, text: l.name })));
+    const height = 260;
+    const { svg, width } = newSvg(box, height);
+    const y = d3.scaleLinear([0, Math.max(1, d3.max(lines.flatMap((l) => l.pts), (p) => p.v))], [height - 26, 8]).nice();
+    const ticks = y.ticks(5);
+    const left = measure(svg, ticks.map(fmtShare), 'fp-axis') + 10;
+    const right = measure(svg, lines.map((l) => `${fmtShare(l.pts.at(-1).v)}`), 'fp-endlabel') + 14;
+    const x = d3.scaleLinear([0, 28], [left, width - right]);
+    svg.append('g').attr('class', 'fp-grid').selectAll('line').data(ticks).join('line')
+      .attr('x1', left).attr('x2', width - right).attr('y1', (t) => y(t)).attr('y2', (t) => y(t));
+    svg.append('g').attr('class', 'fp-axis').selectAll('text').data(ticks).join('text')
+      .attr('x', left - 8).attr('y', (t) => y(t)).attr('dy', '0.32em').attr('text-anchor', 'end').text(fmtShare);
+    svg.append('line').attr('class', 'fp-rule').attr('x1', left).attr('x2', width - right).attr('y1', y(1)).attr('y2', y(1));
+    svg.append('g').attr('class', 'fp-axis').selectAll('text').data([0, 7, 14, 21, 28]).join('text')
+      .attr('x', (d) => x(d)).attr('y', height - 6).attr('text-anchor', (d) => (d === 0 ? 'start' : 'middle')).text((d) => (d === 0 ? 'Same day' : `${d} days`));
+    const line = d3.line().x((p) => x(p.d)).y((p) => y(p.v));
+    svg.append('g').selectAll('path').data(lines).join('path')
+      .attr('fill', 'none').attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round')
+      .style('stroke', (l) => l.color).attr('stroke-width', 2).attr('d', (l) => line(l.pts));
+    const g = svg.append('g');
+    for (const l of lines) {
+      const p = l.pts.at(-1);
+      dot(g, x(p.d), y(p.v), l.color);
+      const t = g.append('text').attr('class', 'fp-endlabel').attr('x', x(p.d) + 8).attr('y', y(p.v)).attr('dy', '0.32em');
+      t.append('tspan').attr('class', 'fp-v').text(fmtShare(p.v));
+    }
+    crosshair(box, svg, {
+      left, right, width, height,
+      step: { fromX: (px) => Math.round(x.invert(px)), next: (i, d) => (i ?? 7) + d },
+      onMove: (i) => {
+        if (i < 0 || i > 28) return null;
+        const rows = lines.map((l) => ({ l, p: l.pts.find((q) => q.d === i) })).filter((r) => r.p);
+        if (!rows.length) return null;
+        return {
+          i, x: x(i), title: i === 0 ? 'Same day' : `After ${i} ${i === 1 ? 'day' : 'days'}`,
+          rows: rows.map((r) => ({ name: r.l.key === 'refinery' ? 'Refinery' : 'Pump', value: fmtShare(r.p.v), color: r.l.color })),
+          dots: rows.map((r) => ({ y: y(r.p.v), color: r.l.color })),
+        };
+      },
+    });
+  };
+
+  const drawSteo = () => {
+    const box = document.getElementById('steo-chart');
+    const legend = document.getElementById('steo-legend');
+    const st = dash.data('steo');
+    box.classList.toggle('dash-skeleton', st.status === 'loading');
+    if (st.status !== 'ok') { box.replaceChildren(); legend.replaceChildren(); if (st.status === 'error') message(box, 'fp-failed', 'Failed to load'); return; }
+    const SERIES = [
+      { key: 'diesel', name: 'US wholesale diesel', color: FUEL.diesel.color },
+      { key: 'gasoline', name: 'US wholesale gasoline', color: FUEL.unleaded95.color },
+      { key: 'brent', name: 'Brent crude', color: 'var(--color-fg-secondary)' },
+    ];
+    const lines = SERIES.map((s) => ({
+      ...s,
+      pts: st.data.filter((r) => r.series === s.key)
+        .map((r) => ({ date: new Date(r.month + '-01T00:00:00Z'), v: Number(r.eur_per_litre), forecast: r.kind === 'forecast', usd: Number(r.value), unit: r.unit }))
+        .sort((a, b) => a.date - b.date),
+    })).filter((l) => l.pts.length);
+    legendItems(legend, [...lines.map((l) => ({ color: l.color, text: l.name })), { color: 'var(--cds-chart-reference)', box: true, text: 'EIA forecast' }]);
+    const height = 280;
+    const { svg, width } = newSvg(box, height);
+    const all = lines.flatMap((l) => l.pts);
+    const y = d3.scaleLinear(d3.extent(all, (p) => p.v), [height - 26, 18]).nice();
+    const ticks = y.ticks(5);
+    const left = measure(svg, ticks.map(fmtTick), 'fp-axis') + 10;
+    const right = measure(svg, lines.map((l) => `${l.name}  ${fmtPrice(l.pts.at(-1).v)}`), 'fp-endlabel') + 22;
+    const x = d3.scaleUtc(d3.extent(all, (p) => p.date), [left, width - right]);
+    const firstForecast = d3.min(all.filter((p) => p.forecast), (p) => p.date);
+    if (firstForecast) {
+      const x0 = x(new Date(+firstForecast - 15 * DAY));
+      svg.append('rect').attr('x', x0).attr('y', 8).attr('width', Math.max(0, width - right - x0)).attr('height', height - 34)
+        .style('fill', 'var(--cds-chart-reference-tint)');
+      svg.append('text').attr('class', 'fp-axis').attr('x', x0 + 6).attr('y', 14).attr('dy', '0.32em').text('EIA forecast');
+    }
+    yAxis(svg, y, ticks, left, right, width);
+    svg.append('g').attr('class', 'fp-axis').selectAll('text').data(x.ticks(Math.max(2, Math.floor((width - left - right) / 90)))).join('text')
+      .attr('x', (t) => x(t)).attr('y', height - 6).attr('text-anchor', 'middle').text(d3.utcFormat('%b %Y'));
+    const line = d3.line().x((p) => x(p.date)).y((p) => y(p.v));
+    svg.append('g').selectAll('path').data(lines).join('path')
+      .attr('fill', 'none').attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round')
+      .style('stroke', (l) => l.color).attr('stroke-width', 2).attr('d', (l) => line(l.pts));
+    const xe = width - right;
+    const eg = svg.append('g');
+    for (const e of spread(lines.map((l) => ({ l, p: l.pts.at(-1), y: y(l.pts.at(-1).v), ly: y(l.pts.at(-1).v) })), 15, 18, height - 26)) {
+      dot(eg, x(e.p.date), e.y, e.l.color);
+      eg.append('path').attr('class', 'fp-leader').attr('d', `M${x(e.p.date) + 5},${e.y} L${xe + 6},${e.ly} L${xe + 10},${e.ly}`);
+      endLabel(eg, xe + 12, e.ly, 'start', e.l.name, fmtPrice(e.p.v));
+    }
+    const months = [...new Set(all.map((p) => +p.date))].sort((a, b) => a - b).map((t) => new Date(t));
+    const bis = d3.bisector((d) => d).center;
+    crosshair(box, svg, {
+      left, right, width, height,
+      step: { fromX: (px) => bis(months, x.invert(px)), next: (i, d) => (i ?? months.length - 1) + d },
+      onMove: (i) => {
+        if (i < 0 || i >= months.length) return null;
+        const m = months[i];
+        const rows = lines.map((l) => ({ l, p: l.pts.find((q) => +q.date === +m) })).filter((r) => r.p);
+        if (!rows.length) return null;
+        return {
+          i, x: x(m), title: d3.utcFormat('%B %Y')(m) + (rows[0].p.forecast ? ', EIA forecast' : ''),
+          rows: rows.map((r) => ({
+            name: `${r.l.name} ($${loc.format('.2f')(r.p.usd)}/${r.p.unit === 'USD/bbl' ? 'bbl' : 'gal'})`,
+            value: fmtPrice(r.p.v), color: r.l.color,
+          })),
+          dots: rows.map((r) => ({ y: y(r.p.v), color: r.l.color })),
+        };
+      },
+    });
+  };
+
+  // ---- tabs --------------------------------------------------------------------------------
+  let page = location.hash.slice(1) === 'outlook' ? 'outlook' : 'prices';
+  const tabs = [...document.querySelectorAll('.fp-tabs [role="tab"]')];
+  const showPage = (name, link) => {
+    page = name;
+    for (const t of tabs) t.setAttribute('aria-selected', String(t.dataset.page === name));
+    document.getElementById('page-prices').hidden = name !== 'prices';
+    document.getElementById('page-outlook').hidden = name !== 'outlook';
+    if (link) dash.setLink(name);
+    draw();
+  };
+  for (const t of tabs) t.addEventListener('click', () => showPage(t.dataset.page, true));
+
+  // ---- draw everything -------------------------------------------------------------------
+  const draw = () => {
+    const p = params();
+    syncControls(p);
+    fillMarks(p);
+    if (page === 'outlook') {
+      drawOutlookTable(p);
+      drawChain(p);
+      drawLag(p);
+      drawSteo();
+    } else {
+      drawTrend(p);
+      drawPeriods(p);
+      drawHistory(p);
+      drawTable(p);
+    }
+  };
+  showPage(page, false);
+  dash.onData(draw);
+})();
+</script>
+
+</div>
+</body>
+</html>

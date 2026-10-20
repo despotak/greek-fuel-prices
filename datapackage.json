@@ -1,0 +1,453 @@
+{
+  "name": "greek-fuel-prices",
+  "title": "Greek fuel prices by prefecture, daily",
+  "description": "Daily average pump prices for every Greek prefecture since March 2017, read from the Ministry of Development's daily bulletins, with Greek refinery prices and a model of how pump prices follow them. Updated every day.",
+  "homepage": "https://despotak.github.io/greek-fuel-prices/",
+  "profile": "tabular-data-package",
+  "keywords": [
+    "fuel prices",
+    "Greece",
+    "heating oil",
+    "diesel",
+    "gasoline",
+    "open data"
+  ],
+  "licenses": [
+    {
+      "name": "other-attribution",
+      "title": "Each resource keeps the terms of its source; credit the source. Model outputs: CC BY 4.0."
+    }
+  ],
+  "contributors": [
+    {
+      "title": "Christos Despotakis",
+      "role": "author",
+      "path": "https://github.com/despotak"
+    }
+  ],
+  "resources": [
+    {
+      "name": "areas",
+      "path": "data/areas.csv",
+      "profile": "tabular-data-resource",
+      "format": "csv",
+      "encoding": "utf-8",
+      "description": "The 51 prefectures (νομοί) and the national average, with the label the bulletins print.",
+      "sources": [
+        {
+          "title": "Ministry of Development, Fuel Price Observatory: daily price bulletins per prefecture",
+          "path": "https://www.fuelprices.gr/deltia_dn.view"
+        }
+      ],
+      "schema": {
+        "fields": [
+          {
+            "name": "area_id",
+            "type": "string",
+            "description": "Stable identifier used across the data"
+          },
+          {
+            "name": "name_el",
+            "type": "string"
+          },
+          {
+            "name": "name_en",
+            "type": "string"
+          },
+          {
+            "name": "bulletin_label",
+            "type": "string"
+          }
+        ],
+        "missingValues": [
+          ""
+        ],
+        "primaryKey": "area_id"
+      }
+    },
+    {
+      "name": "pump_prices",
+      "path": [
+        "data/pump/2017.csv",
+        "data/pump/2018.csv",
+        "data/pump/2019.csv",
+        "data/pump/2020.csv",
+        "data/pump/2021.csv",
+        "data/pump/2022.csv",
+        "data/pump/2023.csv",
+        "data/pump/2024.csv",
+        "data/pump/2025.csv",
+        "data/pump/2026.csv"
+      ],
+      "profile": "tabular-data-resource",
+      "format": "csv",
+      "encoding": "utf-8",
+      "description": "Average retail price per litre by prefecture and day, in EUR including 24% VAT, as printed in each daily bulletin. One file per year.",
+      "sources": [
+        {
+          "title": "Ministry of Development, Fuel Price Observatory: daily price bulletins per prefecture",
+          "path": "https://www.fuelprices.gr/deltia_dn.view"
+        }
+      ],
+      "schema": {
+        "fields": [
+          {
+            "name": "date",
+            "type": "date"
+          },
+          {
+            "name": "area_id",
+            "type": "string",
+            "description": "See areas.csv"
+          },
+          {
+            "name": "unleaded95",
+            "type": "number",
+            "description": "Unleaded 95 octane (Αμόλυβδη 95)"
+          },
+          {
+            "name": "unleaded100",
+            "type": "number",
+            "description": "Unleaded 100 octane (Αμόλυβδη 100)"
+          },
+          {
+            "name": "super",
+            "type": "number",
+            "description": "Super (until 2022; very few stations)"
+          },
+          {
+            "name": "diesel",
+            "type": "number",
+            "description": "Road diesel (Diesel κίνησης)"
+          },
+          {
+            "name": "autogas",
+            "type": "number",
+            "description": "Autogas, LPG (Υγραέριο κίνησης)"
+          },
+          {
+            "name": "heating_oil",
+            "type": "number",
+            "description": "Heating oil delivered to the home (Diesel θέρμανσης κατ' οίκον); 15 Oct to 30 Apr only"
+          }
+        ],
+        "missingValues": [
+          ""
+        ],
+        "foreignKeys": [
+          {
+            "fields": "area_id",
+            "reference": {
+              "resource": "areas",
+              "fields": "area_id"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "missing_days",
+      "path": "data/pump/missing_days.csv",
+      "profile": "tabular-data-resource",
+      "format": "csv",
+      "encoding": "utf-8",
+      "description": "Days between the first and last bulletin with no data, and why.",
+      "sources": [
+        {
+          "title": "Ministry of Development, Fuel Price Observatory: daily price bulletins per prefecture",
+          "path": "https://www.fuelprices.gr/deltia_dn.view"
+        }
+      ],
+      "schema": {
+        "fields": [
+          {
+            "name": "date",
+            "type": "date"
+          },
+          {
+            "name": "reason",
+            "type": "string"
+          }
+        ],
+        "missingValues": [
+          ""
+        ]
+      }
+    },
+    {
+      "name": "accepted_anomalies",
+      "path": "data/pump/accepted_anomalies.csv",
+      "profile": "tabular-data-resource",
+      "format": "csv",
+      "encoding": "utf-8",
+      "description": "Days whose large price jumps were checked against the bulletin and accepted as published.",
+      "sources": [
+        {
+          "title": "Ministry of Development, Fuel Price Observatory: daily price bulletins per prefecture",
+          "path": "https://www.fuelprices.gr/deltia_dn.view"
+        }
+      ],
+      "schema": {
+        "fields": [
+          {
+            "name": "date",
+            "type": "date"
+          },
+          {
+            "name": "note",
+            "type": "string"
+          }
+        ],
+        "missingValues": [
+          ""
+        ]
+      }
+    },
+    {
+      "name": "refinery_prices",
+      "path": "data/refinery/refinery_prices.csv",
+      "profile": "tabular-data-resource",
+      "format": "csv",
+      "encoding": "utf-8",
+      "description": "Daily ex-refinery prices of ELPE and Motor Oil per product. 'mean' and 'mean_incl_vat' as published; see 'basis' for what each includes and the unit.",
+      "sources": [
+        {
+          "title": "Ministry price observatory, refinery prices (ELPE, Motor Oil)",
+          "path": "https://oil.gge.gov.gr"
+        },
+        {
+          "title": "collected by greek-oil-refinery-prices (AGPL-3.0 code)",
+          "path": "https://github.com/akosiaris/greek-oil-refinery-prices"
+        }
+      ],
+      "schema": {
+        "fields": [
+          {
+            "name": "date",
+            "type": "date"
+          },
+          {
+            "name": "category",
+            "type": "string"
+          },
+          {
+            "name": "product",
+            "type": "string"
+          },
+          {
+            "name": "elpe",
+            "type": "number"
+          },
+          {
+            "name": "motor_oil",
+            "type": "number"
+          },
+          {
+            "name": "mean",
+            "type": "number"
+          },
+          {
+            "name": "mean_incl_vat",
+            "type": "number"
+          },
+          {
+            "name": "unit",
+            "type": "string"
+          },
+          {
+            "name": "basis",
+            "type": "string"
+          }
+        ],
+        "missingValues": [
+          ""
+        ]
+      }
+    },
+    {
+      "name": "ecb_eurusd",
+      "path": "data/international/ecb_eurusd.csv",
+      "profile": "tabular-data-resource",
+      "format": "csv",
+      "encoding": "utf-8",
+      "description": "ECB euro reference rate, US dollars per euro.",
+      "sources": [
+        {
+          "title": "European Central Bank, euro reference exchange rate (USD)",
+          "path": "https://data.ecb.europa.eu/data/datasets/EXR"
+        }
+      ],
+      "schema": {
+        "fields": [
+          {
+            "name": "date",
+            "type": "date"
+          },
+          {
+            "name": "usd_per_eur",
+            "type": "number"
+          }
+        ],
+        "missingValues": [
+          ""
+        ]
+      }
+    },
+    {
+      "name": "model_forecast",
+      "path": "data/model/forecast.csv",
+      "profile": "tabular-data-resource",
+      "format": "csv",
+      "encoding": "utf-8",
+      "description": "Expected change of the pump price 7 and 14 days after the latest bulletin per area and fuel (EUR/L), with the model's backtest record since 2024: mean absolute error (mae_*), the error of assuming no change (mae_naive_*), and the share of days the direction was right (hit_*) and the share a 'same as last week' guess got right (hit_momentum_*).",
+      "sources": [
+        {
+          "title": "Ministry of Development, Fuel Price Observatory: daily price bulletins per prefecture",
+          "path": "https://www.fuelprices.gr/deltia_dn.view"
+        },
+        {
+          "title": "Ministry price observatory, refinery prices (ELPE, Motor Oil)",
+          "path": "https://oil.gge.gov.gr"
+        },
+        {
+          "title": "collected by greek-oil-refinery-prices (AGPL-3.0 code)",
+          "path": "https://github.com/akosiaris/greek-oil-refinery-prices"
+        }
+      ],
+      "schema": {
+        "fields": [
+          {
+            "name": "area_id",
+            "type": "string"
+          },
+          {
+            "name": "area",
+            "type": "string"
+          },
+          {
+            "name": "fuel",
+            "type": "string"
+          },
+          {
+            "name": "date",
+            "type": "date"
+          },
+          {
+            "name": "pump",
+            "type": "number"
+          },
+          {
+            "name": "change_7",
+            "type": "number"
+          },
+          {
+            "name": "mae_7",
+            "type": "number"
+          },
+          {
+            "name": "mae_naive_7",
+            "type": "number"
+          },
+          {
+            "name": "hit_7",
+            "type": "number"
+          },
+          {
+            "name": "hit_momentum_7",
+            "type": "number"
+          },
+          {
+            "name": "n_7",
+            "type": "integer"
+          },
+          {
+            "name": "change_14",
+            "type": "number"
+          },
+          {
+            "name": "mae_14",
+            "type": "number"
+          },
+          {
+            "name": "mae_naive_14",
+            "type": "number"
+          },
+          {
+            "name": "hit_14",
+            "type": "number"
+          },
+          {
+            "name": "hit_momentum_14",
+            "type": "number"
+          },
+          {
+            "name": "n_14",
+            "type": "integer"
+          }
+        ],
+        "missingValues": [
+          ""
+        ]
+      },
+      "licenses": [
+        {
+          "name": "CC-BY-4.0",
+          "path": "https://creativecommons.org/licenses/by/4.0/",
+          "title": "Creative Commons Attribution 4.0"
+        }
+      ]
+    },
+    {
+      "name": "model_passthrough_curve",
+      "path": "data/model/passthrough_curve.csv",
+      "profile": "tabular-data-resource",
+      "format": "csv",
+      "encoding": "utf-8",
+      "description": "Cumulative share of a price change passed on after 0-28 days: refinery after an international (EIA NY Harbor) move, and pump after a refinery move. Distributed-lag regression on daily data since 2019, March-June 2022 excluded.",
+      "sources": [
+        {
+          "title": "Ministry of Development, Fuel Price Observatory: daily price bulletins per prefecture",
+          "path": "https://www.fuelprices.gr/deltia_dn.view"
+        },
+        {
+          "title": "Ministry price observatory, refinery prices (ELPE, Motor Oil)",
+          "path": "https://oil.gge.gov.gr"
+        },
+        {
+          "title": "collected by greek-oil-refinery-prices (AGPL-3.0 code)",
+          "path": "https://github.com/akosiaris/greek-oil-refinery-prices"
+        }
+      ],
+      "schema": {
+        "fields": [
+          {
+            "name": "fuel",
+            "type": "string"
+          },
+          {
+            "name": "stage",
+            "type": "string"
+          },
+          {
+            "name": "day",
+            "type": "integer"
+          },
+          {
+            "name": "share",
+            "type": "number"
+          }
+        ],
+        "missingValues": [
+          ""
+        ]
+      },
+      "licenses": [
+        {
+          "name": "CC-BY-4.0",
+          "path": "https://creativecommons.org/licenses/by/4.0/",
+          "title": "Creative Commons Attribution 4.0"
+        }
+      ]
+    }
+  ]
+}
