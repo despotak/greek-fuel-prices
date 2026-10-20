@@ -207,7 +207,7 @@ window.DASH_PARAMS = { area: 'Αττική', fuel: 'heating_oil', range: 'all' }
 
   <section class="fp-card" id="trend">
     <h2 class="fp-card-title" id="trend-title">Heating oil in Αττική</h2>
-    <p class="fp-note">Daily average pump price in the chosen area, against the national average and the spread from the cheapest to the dearest prefecture on each day.</p>
+    <p class="fp-note">Daily average pump price in the chosen area, against the national average and the spread from the cheapest to the dearest prefecture on each day. Click either in the legend to hide or show it.</p>
     <div class="fp-legend" id="trend-legend"></div>
     <div class="fp-chart" id="trend-chart" data-source="heating_oil" tabindex="0" aria-label="Price of the chosen fuel over time"></div>
   </section>
@@ -539,7 +539,10 @@ dash.calc('coverage', {
 
   const params = () => {
     const p = dash.params();
-    return { area: p.area || 'Αττική', fuel: FUEL[p.fuel] ? p.fuel : 'heating_oil', range: RANGES.has(p.range) ? p.range : 'all' };
+    return {
+      area: p.area || 'Αττική', fuel: FUEL[p.fuel] ? p.fuel : 'heating_oil', range: RANGES.has(p.range) ? p.range : 'all',
+      band: p.band === 'off' ? 'off' : 'on', nat: p.nat === 'off' ? 'off' : 'on',
+    };
   };
 
   // ---- data -------------------------------------------------------------------
@@ -823,7 +826,7 @@ dash.calc('coverage', {
   };
 
   // ---- 1. chosen fuel in chosen area vs national and the prefecture spread ----------------
-  const drawTrend = ({ area, fuel, range }) => {
+  const drawTrend = ({ area, fuel, range, band: bandParam, nat: natParam }) => {
     const box = document.getElementById('trend-chart');
     const legend = document.getElementById('trend-legend');
     const f = FUEL[fuel];
@@ -857,21 +860,36 @@ dash.calc('coverage', {
       return;
     }
     const isNat = area === NATIONAL;
-    legendItems(legend, [
-      { color: f.color, text: areaName(area) },
-      ...(isNat ? [] : [{ color: 'var(--color-fg-secondary)', text: 'Greece (national average)' }]),
-      { color: f.color, box: true, text: 'Cheapest to dearest prefecture' },
-    ]);
+    const showBand = bandParam !== 'off';
+    const showNat = !isNat && natParam !== 'off';
+    // The national line and the cheapest-to-dearest band are switched from their legend entries.
+    const toggle = (key, on, color, box, text) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(on));
+      const k = document.createElement('span');
+      k.className = 'fp-key' + (box ? ' fp-box' : '');
+      k.style.setProperty('--k', color);
+      b.append(k, document.createTextNode(text));
+      b.addEventListener('click', () => dash.setParams({ [key]: on ? 'off' : 'on' }));
+      return b;
+    };
+    legendItems(legend, [{ color: f.color, text: areaName(area) }]);
+    if (!isNat) legend.append(toggle('nat', showNat, 'var(--color-fg-secondary)', false, 'Greece (national average)'));
+    legend.append(toggle('band', showBand, f.color, true, 'Cheapest to dearest prefecture'));
 
     const height = 320;
     const { svg, width } = newSvg(box, height);
-    const y = d3.scaleLinear([d3.min(pts, (p) => p.lo), d3.max(pts, (p) => p.hi)], [height - 26, 8]).nice();
+    // The axis fits what is shown: the band when it is on, otherwise only the lines.
+    const yVals = showBand ? pts.flatMap((p) => [p.lo, p.hi])
+      : [...own.map((p) => p.v), ...(showNat ? pts.map((p) => p.nat).filter((v) => !Number.isNaN(v)) : [])];
+    const y = d3.scaleLinear(d3.extent(yVals), [height - 26, 8]).nice();
     const ticks = y.ticks(6);
     const left = measure(svg, ticks.map(fmtTick), 'fp-axis') + 10;
     const lastOwn = own.at(-1);
     const lastNat = [...pts].reverse().find((p) => !Number.isNaN(p.nat));
     const ends = [{ name: areaShort(area), v: lastOwn.v, date: lastOwn.date, color: f.color }];
-    if (!isNat && lastNat) ends.push({ name: 'Greece', v: lastNat.nat, date: lastNat.date, color: 'var(--color-fg-secondary)' });
+    if (showNat && lastNat) ends.push({ name: 'Greece', v: lastNat.nat, date: lastNat.date, color: 'var(--color-fg-secondary)' });
     const right = measure(svg, ends.map((e) => `${e.name}  ${fmtPrice(e.v)}`), 'fp-endlabel') + 22;
     const x = d3.scaleUtc([pts[0].date < start ? start : d3.min(pts, (p) => p.date), end], [left, width - right]);
     yAxis(svg, y, ticks, left, right, width);
@@ -881,9 +899,9 @@ dash.calc('coverage', {
       .attr('x', (t) => x(t)).attr('y', height - 6).attr('text-anchor', 'middle').text(ax.fmt);
 
     const band = d3.area().defined((p) => p != null).x((p) => x(p.date)).y0((p) => y(p.lo)).y1((p) => y(p.hi));
-    svg.append('path').attr('d', band(segment(pts))).style('fill', f.color).attr('fill-opacity', 0.14);
+    if (showBand) svg.append('path').attr('d', band(segment(pts))).style('fill', f.color).attr('fill-opacity', 0.14);
     const line = d3.line().defined((p) => p != null).x((p) => x(p.date));
-    if (!isNat) {
+    if (showNat) {
       svg.append('path').attr('fill', 'none').style('stroke', 'var(--color-fg-secondary)').attr('stroke-width', 1.5).attr('stroke-linejoin', 'round')
         .attr('d', line.y((p) => y(p.nat))(segment(pts.filter((p) => !Number.isNaN(p.nat)))));
     }
@@ -907,9 +925,11 @@ dash.calc('coverage', {
         const rows = [];
         const dots = [];
         if (!Number.isNaN(p.v)) { rows.push({ name: areaShort(area), value: fmtPrice(p.v), color: f.color }); dots.push({ y: y(p.v), color: f.color }); }
-        if (!isNat && !Number.isNaN(p.nat)) { rows.push({ name: 'Greece', value: fmtPrice(p.nat), color: 'var(--color-fg-secondary)' }); dots.push({ y: y(p.nat), color: 'var(--color-fg-secondary)' }); }
-        rows.push({ name: `Cheapest: ${p.loA}`, value: fmtPrice(p.lo), color: f.color, box: true, dim: true });
-        rows.push({ name: `Dearest: ${p.hiA}`, value: fmtPrice(p.hi), color: f.color, box: true, dim: true });
+        if (showNat && !Number.isNaN(p.nat)) { rows.push({ name: 'Greece', value: fmtPrice(p.nat), color: 'var(--color-fg-secondary)' }); dots.push({ y: y(p.nat), color: 'var(--color-fg-secondary)' }); }
+        if (showBand) {
+          rows.push({ name: `Cheapest: ${p.loA}`, value: fmtPrice(p.lo), color: f.color, box: true, dim: true });
+          rows.push({ name: `Dearest: ${p.hiA}`, value: fmtPrice(p.hi), color: f.color, box: true, dim: true });
+        }
         return { i, x: x(p.date), title: fmtDate(p.date), rows, dots };
       },
     });
