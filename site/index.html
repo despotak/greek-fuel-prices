@@ -5,6 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Greek fuel prices</title>
 <meta name="description" content="Daily pump prices for every Greek prefecture since 2017, how they follow refinery and world prices, and a two-week outlook.">
+<link rel="alternate" type="text/plain" href="llms.txt" title="The data for programs and AI agents">
+<link rel="alternate" type="application/json" href="datapackage.json" title="Frictionless Data Package of every CSV">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Dataset",
+  "name": "Greek fuel prices by prefecture, daily",
+  "description": "Daily average pump prices for every Greek prefecture since March 2017 (unleaded 95 and 100, diesel, autogas, heating oil), Greek refinery prices, the EU Weekly Oil Bulletin with tax rates for every EU country since 2005, and a two-week outlook. Rebuilt three times a day. For programs and AI agents, start at llms.txt.",
+  "url": "https://despotak.github.io/greek-fuel-prices/",
+  "sameAs": "https://github.com/despotak/greek-fuel-prices",
+  "creator": {"@type": "Person", "name": "Christos Despotakis", "url": "https://github.com/despotak"},
+  "license": {"@type": "CreativeWork", "name": "Each source keeps its terms: credit the Greek Ministry of Development for pump and refinery prices; EU Weekly Oil Bulletin data and the model outputs are CC BY 4.0", "url": "https://github.com/despotak/greek-fuel-prices#readme"},
+  "isAccessibleForFree": true,
+  "temporalCoverage": "2017-03-14/..",
+  "spatialCoverage": {"@type": "Place", "name": "Greece"},
+  "keywords": ["fuel prices", "Greece", "heating oil", "diesel", "petrol", "LPG", "refinery prices", "EU Weekly Oil Bulletin", "open data"],
+  "distribution": [
+    {"@type": "DataDownload", "name": "Instructions for programs and AI agents", "encodingFormat": "text/plain", "contentUrl": "https://despotak.github.io/greek-fuel-prices/llms.txt"},
+    {"@type": "DataDownload", "name": "Pump prices, long table", "encodingFormat": "application/vnd.apache.parquet", "contentUrl": "https://despotak.github.io/greek-fuel-prices/data/agents/pump_prices.parquet"},
+    {"@type": "DataDownload", "name": "Refinery prices", "encodingFormat": "application/vnd.apache.parquet", "contentUrl": "https://despotak.github.io/greek-fuel-prices/data/agents/refinery_prices.parquet"},
+    {"@type": "DataDownload", "name": "EU Weekly Oil Bulletin", "encodingFormat": "application/vnd.apache.parquet", "contentUrl": "https://despotak.github.io/greek-fuel-prices/data/agents/eu_weekly_oil_bulletin.parquet"},
+    {"@type": "DataDownload", "name": "Newest bulletin day, every area and fuel", "encodingFormat": "application/json", "contentUrl": "https://despotak.github.io/greek-fuel-prices/data/agents/latest.json"},
+    {"@type": "DataDownload", "name": "Every CSV, described (Frictionless Data Package)", "encodingFormat": "application/json", "contentUrl": "https://despotak.github.io/greek-fuel-prices/datapackage.json"}
+  ]
+}
+</script>
 <link rel="stylesheet" href="theme.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script>
@@ -339,7 +365,7 @@ window.DASH_PARAMS = { area: 'Αττική', fuel: 'heating_oil', range: 'all', 
     </section>
   </div>
 
-  <footer class="fp-note fp-foot" id="site-foot">Latest bulletin: <span class="dash-skeleton" data-source="latest" data-field="date" data-row="0" data-kind="date">—</span>. Rebuilt every day from fuelprices.gr, oil.gge.gov.gr, the ECB and the US EIA. Data and code: <a href="https://github.com/despotak/greek-fuel-prices">github.com/despotak/greek-fuel-prices</a> · <a href="datapackage.json">datapackage.json</a></footer>
+  <footer class="fp-note fp-foot" id="site-foot">Latest bulletin: <span class="dash-skeleton" data-source="latest" data-field="date" data-row="0" data-kind="date">—</span>. Rebuilt three times a day from fuelprices.gr, oil.gge.gov.gr, the European Commission, the ECB and the US EIA. Data and code: <a href="https://github.com/despotak/greek-fuel-prices">github.com/despotak/greek-fuel-prices</a> · <a href="datapackage.json">datapackage.json</a> · For programs and AI agents: <a href="llms.txt">llms.txt</a></footer>
 </div>
 
 <script>
