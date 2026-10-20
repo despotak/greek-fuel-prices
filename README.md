@@ -23,6 +23,7 @@ All files are UTF-8 CSV, described in [`datapackage.json`](datapackage.json) ([F
 | `data/refinery/refinery_prices.csv` | Daily ex-refinery prices of ELPE and Motor Oil per product; `basis` says what is included and the unit |
 | `data/international/ecb_eurusd.csv` | ECB euro reference rate (USD per EUR) |
 | `data/eu/weekly_oil_bulletin.csv` | The European Commission's Weekly Oil Bulletin since 2005: every EU country, the EU and euro-area averages, with and without taxes, in EUR per litre (95, diesel, heating oil, LPG). © European Union, CC BY 4.0; converted from EUR per 1,000 litres, fuel oil left out. Greece's figures match the daily bulletins' national average to the tenth of a cent on all but 11 of 474 shared Mondays, so `validate.py` warns when a recent week disagrees. |
+| `data/eu/tax_rates.csv` | Every change of VAT, excise duty and other indirect taxes on those four fuels in each EU country, with the date it came into force (from the same bulletin, CC BY 4.0). Excise is per litre, in the currency the country used at the time. |
 | `data/model/forecast.csv` | The two-week outlook per area and fuel, with its backtest record |
 | `data/model/passthrough_curve.csv` | How much of a price move reaches the refinery and the pump after 0–28 days |
 

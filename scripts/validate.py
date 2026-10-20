@@ -100,7 +100,8 @@ def main(root):
                 warnings.append(f"{day} {f}: large steps {jumps[:6]}")
 
     for rel in ("data/model/forecast.csv", "data/model/passthrough_curve.csv", "data/refinery/refinery_prices.csv",
-                "data/international/ecb_eurusd.csv", "data/eu/weekly_oil_bulletin.csv"):
+                "data/international/ecb_eurusd.csv", "data/eu/weekly_oil_bulletin.csv",
+                "data/eu/tax_rates.csv"):
         p = root / rel
         if not p.exists() or len(pd.read_csv(p)) == 0:
             errors.append(f"{rel} missing or empty")

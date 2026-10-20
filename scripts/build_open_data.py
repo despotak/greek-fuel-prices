@@ -154,6 +154,38 @@ def ecb(root, tmp):
     print(f"ecb: {len(out)} rows to {out['date'].max()}", file=sys.stderr)
 
 
+# Columns of the bulletin's tax sheets, left to right after the country and the "Since:" date.
+EU_TAX_COLUMNS = ["euro95", "diesel", "heating_oil", "fuel_oil_1", "fuel_oil_2", "lpg"]
+EU_TAX_SHEETS = {"VAT": ("vat", "percent"),
+                 "Excise duties": ("excise", "national currency per litre"),
+                 "Other Indirect Taxes": ("other_indirect", "national currency per litre")}
+
+
+def eu_tax_rates(wb):
+    """Every tax-rate change in the bulletin's VAT, excise and other-indirect-tax sheets:
+    [date in force, country, fuel, tax, value, unit], for the four fuels the prices file keeps.
+
+    Each sheet is one block per country, newest change first; a blank cell means that fuel's rate
+    did not change on that date, so only filled cells are changes. Excise and other taxes are in the
+    currency the country used when the Commission recorded them, per 1,000 litres in the sheet.
+    """
+    out = []
+    for sheet, (tax, unit) in EU_TAX_SHEETS.items():
+        country = None
+        for r in wb[sheet].iter_rows(values_only=True):
+            if isinstance(r[0], str) and re.fullmatch(r"[A-Z]{2}_", r[0]):
+                country = r[0][:2]
+            if country is None or not hasattr(r[1], "date"):
+                continue
+            for fuel, v in zip(EU_TAX_COLUMNS, r[2:8]):
+                if fuel in EU_FUELS.values() and isinstance(v, (int, float)):
+                    out.append([r[1].date().isoformat(), country, fuel, tax,
+                                round(v, 4) if tax == "vat" else round(v / 1000, 6), unit])
+    if len({r[1] for r in out}) < 27:
+        raise ValueError(f"tax sheets name only {len({r[1] for r in out})} countries")
+    return sorted(out)
+
+
 def eu_oil_bulletin(root, tmp):
     """EU Weekly Oil Bulletin -> data/eu/weekly_oil_bulletin.csv, every country and the EU and euro-area
     averages, in EUR per litre with and without taxes (the workbook gives EUR per 1,000 litres).
@@ -181,9 +213,15 @@ def eu_oil_bulletin(root, tmp):
                 for i, (country, fuel) in cols.items():
                     if isinstance(r[i], (int, float)) and r[i] > 0:
                         prices.setdefault((day, country, fuel), {})[kind] = round(r[i] / 1000, 6)
+        taxes = eu_tax_rates(wb)
     except (OSError, KeyError, ValueError, StopIteration) as exc:
         print(f"eu weekly oil bulletin: NOT refreshed, keeping {path.name}: {exc}", file=sys.stderr)
         return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path.parent / "tax_rates.csv", "w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh, lineterminator="\n")
+        w.writerow(["date", "country", "fuel", "tax", "value", "unit"])
+        w.writerows(taxes)
     out = sorted([d, c, f, v.get("with_tax", ""), v.get("wo_tax", "")] for (d, c, f), v in prices.items())
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", newline="", encoding="utf-8") as fh:

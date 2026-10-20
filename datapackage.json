@@ -354,6 +354,64 @@
       ]
     },
     {
+      "name": "eu_tax_rates",
+      "path": "data/eu/tax_rates.csv",
+      "profile": "tabular-data-resource",
+      "format": "csv",
+      "encoding": "utf-8",
+      "description": "Every change of VAT, excise duty and other indirect taxes on 95, road diesel, heating gas oil and LPG in each EU country, from the European Commission's Weekly Oil Bulletin, with the date it came into force. Changes made here: excise and other taxes converted from per 1,000 litres to per litre; four of the six fuels kept; reshaped to one row per change (the source leaves a fuel's cell blank when its rate did not change). Excise and other taxes are in the currency the country used when the Commission recorded them, so Croatia (euro from 2023) and Bulgaria (from 2026) switch currency partway through; the per-component (bio/fossil) excise sheet is not included.",
+      "sources": [
+        {
+          "title": "European Commission, DG Energy, Weekly Oil Bulletin, price history (© European Union, CC BY 4.0)",
+          "path": "https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en"
+        }
+      ],
+      "schema": {
+        "fields": [
+          {
+            "name": "date",
+            "type": "date",
+            "description": "Date the rate came into force"
+          },
+          {
+            "name": "country",
+            "type": "string",
+            "description": "Two-letter country code (UK only until it left the EU)"
+          },
+          {
+            "name": "fuel",
+            "type": "string",
+            "description": "euro95, diesel, heating_oil or lpg"
+          },
+          {
+            "name": "tax",
+            "type": "string",
+            "description": "vat, excise or other_indirect"
+          },
+          {
+            "name": "value",
+            "type": "number",
+            "description": "The rate: percent for VAT, an amount per litre for the others"
+          },
+          {
+            "name": "unit",
+            "type": "string",
+            "description": "percent, or national currency per litre"
+          }
+        ],
+        "missingValues": [
+          ""
+        ]
+      },
+      "licenses": [
+        {
+          "name": "CC-BY-4.0",
+          "path": "https://creativecommons.org/licenses/by/4.0/",
+          "title": "Creative Commons Attribution 4.0"
+        }
+      ]
+    },
+    {
       "name": "refinery_prices",
       "path": "data/refinery/refinery_prices.csv",
       "profile": "tabular-data-resource",
