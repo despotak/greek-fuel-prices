@@ -307,7 +307,7 @@
       "profile": "tabular-data-resource",
       "format": "csv",
       "encoding": "utf-8",
-      "description": "Weekly consumer prices in every EU country with and without taxes, since January 2005, as published by the European Commission in its Weekly Oil Bulletin. Changes made here: prices converted from EUR per 1,000 litres to EUR per litre; four of the six fuels kept (Euro-super 95, road diesel, heating gas oil, LPG; the two fuel oil grades left out); reshaped to one row per week, country and fuel, leaving out weeks a country reported nothing for that fuel. The taxes are the difference between the two prices.",
+      "description": "Weekly consumer prices in every EU country with and without taxes, since January 2005, as published by the European Commission in its Weekly Oil Bulletin. Changes made here: prices converted from EUR per 1,000 litres to EUR per litre; four of the six fuels kept (Euro-super 95, road diesel, heating gas oil, LPG; the two fuel oil grades left out); reshaped to one row per week, country and fuel, leaving out weeks a country reported nothing for that fuel. The taxes are the difference between the two prices. As published, Greece's heating-oil price is carried unchanged from May to mid-October, when it is not sold at the reduced rate; the dashboard leaves those weeks out.",
       "sources": [
         {
           "title": "European Commission, DG Energy, Weekly Oil Bulletin, price history (© European Union, CC BY 4.0)",

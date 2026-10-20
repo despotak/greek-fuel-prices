@@ -14,6 +14,7 @@ window.DASH_DATASETS = {
   autogas: 'data/autogas_daily_by_area.csv', super: 'data/super_daily_by_area.csv',
   forecast: 'data/forecast.csv', passthrough_curve: 'data/passthrough_curve.csv',
   chain: 'data/chain.csv', steo: 'data/steo.csv',
+  eu_greece: 'data/eu_greece.csv', eu_latest: 'data/eu_latest.csv',
 };
 window.DASH_PARAMS = { area: 'Αττική', fuel: 'heating_oil', range: 'all', band: 'on', nat: 'on' };
 </script>
@@ -226,6 +227,13 @@ window.DASH_PARAMS = { area: 'Αττική', fuel: 'heating_oil', range: 'all', 
     <p class="fp-note">Click a fuel to hide or show it. Heating oil drops out every summer, when it is not sold at the reduced rate, and Super ends in 2022.</p>
     <div class="fp-legend" id="history-legend"></div>
     <div class="fp-chart" id="history-chart" data-source="heating_oil diesel unleaded95 unleaded100 autogas super" tabindex="0" aria-label="Daily price of every fuel in the chosen area"></div>
+  </section>
+
+  <section class="fp-card" id="eu">
+    <h2 class="fp-card-title" id="eu-title">Greece against the EU</h2>
+    <p class="fp-note">Weekly prices from the European Commission's Weekly Oil Bulletin. <strong>Before taxes</strong>, the gap between Greece and the EU average is what the fuel costs here plus refinery, distribution and retail margins, the part taxes cannot explain; with taxes it adds each country's duties and VAT. <span id="eu-rank"></span> Greek heating oil is shown only in its season: the bulletin repeats its last price through the summer. The chart always shows at least 13 weeks. Source: © European Union, CC BY 4.0, converted to euro per litre.</p>
+    <div class="fp-legend" id="eu-legend"></div>
+    <div class="fp-chart" id="eu-chart" data-source="eu_greece" style="min-height: 280px" tabindex="0" aria-label="Greece against the EU average, weekly, before and with taxes"></div>
   </section>
 
   <section class="fp-card" id="prefectures">
@@ -1513,6 +1521,106 @@ dash.calc('coverage', {
     }));
   };
 
+  // ---- Greece against the EU (European Commission, Weekly Oil Bulletin) --------------------
+  // The bulletin has no 100 octane or Super, so those show unleaded 95.
+  const EU_FUEL = { unleaded95: 'euro95', unleaded100: 'euro95', super: 'euro95', diesel: 'diesel', heating_oil: 'heating_oil', autogas: 'lpg' };
+  const EU_MIN_DAYS = 91; // weekly data: shorter periods would show one or two points
+  const drawEU = ({ fuel, range }) => {
+    const box = document.getElementById('eu-chart');
+    const legend = document.getElementById('eu-legend');
+    const rank = document.getElementById('eu-rank');
+    const st = dash.data('eu_greece');
+    box.classList.toggle('dash-skeleton', st.status === 'loading');
+    if (st.status !== 'ok') {
+      box.replaceChildren(); legend.replaceChildren(); rank.textContent = '';
+      if (st.status === 'error') message(box, 'fp-failed', 'Failed to load');
+      return;
+    }
+    const key = EU_FUEL[fuel];
+    const shown = key === 'euro95' ? 'unleaded95' : fuel;
+    document.getElementById('eu-title').textContent = `${FUEL[shown].name}: Greece against the EU`;
+    const num = (v) => (v == null || v === '' ? null : Number(v));
+    const rows = st.data.filter((r) => r.fuel === key)
+      .map((r) => ({ date: parseDay(r.date), gr_without: num(r.gr_without), eu_without: num(r.eu_without), gr_with: num(r.gr_with), eu_with: num(r.eu_with) }));
+    if (!rows.some((r) => r.gr_with != null)) {
+      box.querySelector('svg')?.remove(); legend.replaceChildren(); rank.textContent = '';
+      message(box, 'fp-empty', `Greece reports no ${FUEL[fuel].name.toLowerCase()} prices to the EU bulletin.`);
+      return;
+    }
+    const end = rows.at(-1).date;
+    const start = new Date(Math.min(+rangeStart(range, end, rows[0].date), +end - EU_MIN_DAYS * DAY));
+    const pts = rows.filter((r) => r.date >= start);
+    const color = FUEL[shown].color;
+    const faded = (c) => `color-mix(in srgb, ${c} 45%, transparent)`;
+    const grey = 'var(--color-fg-secondary)';
+    const lines = [
+      { key: 'gr_without', name: 'Greece, before taxes', short: 'Greece', color, width: 2 },
+      { key: 'eu_without', name: 'EU average, before taxes', short: 'EU', color: grey, width: 2 },
+      { key: 'gr_with', name: 'Greece, with taxes', short: 'Greece, taxed', color: faded(color), width: 1.5 },
+      { key: 'eu_with', name: 'EU average, with taxes', short: 'EU, taxed', color: faded(grey), width: 1.5 },
+    // Every week stays in, blank or not, so a season Greece did not report breaks the line instead of
+    // being bridged by a straight segment.
+    ].map((l) => ({ ...l, pts: pts.map((p) => ({ date: p.date, v: p[l.key] })) }))
+      .map((l) => ({ ...l, last: l.pts.findLast((p) => p.v != null) }))
+      .filter((l) => l.last);
+    legendItems(legend, lines.map((l) => ({ color: l.color, text: l.name })));
+
+    const height = 280;
+    const { svg, width } = newSvg(box, height);
+    const all = lines.flatMap((l) => l.pts).filter((p) => p.v != null);
+    const y = d3.scaleLinear(d3.extent(all, (p) => p.v), [height - 26, 18]).nice();
+    const ticks = y.ticks(5);
+    const left = measure(svg, ticks.map(fmtTick), 'fp-axis') + 10;
+    const right = measure(svg, lines.map((l) => `${l.short}  ${fmtPrice(l.last.v)}`), 'fp-endlabel') + 22;
+    const x = d3.scaleUtc([start, end], [left, width - right]);
+    yAxis(svg, y, ticks, left, right, width);
+    const axis = timeAxis(x, width - left - right);
+    svg.append('g').attr('class', 'fp-axis').selectAll('text').data(axis.ticks).join('text')
+      .attr('x', (t) => x(t)).attr('y', height - 6).attr('text-anchor', 'middle').text(axis.fmt);
+    const line = d3.line().defined((p) => p.v != null).x((p) => x(p.date)).y((p) => y(p.v));
+    svg.append('g').selectAll('path').data(lines).join('path')
+      .attr('fill', 'none').attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round')
+      .style('stroke', (l) => l.color).attr('stroke-width', (l) => l.width).attr('d', (l) => line(l.pts));
+    const xe = width - right;
+    const eg = svg.append('g');
+    for (const e of spread(lines.map((l) => ({ l, p: l.last, y: y(l.last.v), ly: y(l.last.v) })), 15, 18, height - 26)) {
+      dot(eg, x(e.p.date), e.y, e.l.color);
+      eg.append('path').attr('class', 'fp-leader').attr('d', `M${x(e.p.date) + 5},${e.y} L${xe + 6},${e.ly} L${xe + 10},${e.ly}`);
+      endLabel(eg, xe + 12, e.ly, 'start', e.l.short, fmtPrice(e.p.v));
+    }
+    const weeks = pts.map((p) => p.date);
+    const bis = d3.bisector((d) => d).center;
+    crosshair(box, svg, {
+      left, right, width, height,
+      step: { fromX: (px) => bis(weeks, x.invert(px)), next: (i, d) => (i ?? weeks.length - 1) + d },
+      onMove: (i) => {
+        if (i < 0 || i >= weeks.length) return null;
+        const rows = lines.map((l) => ({ l, p: l.pts[i] })).filter((r) => r.p && r.p.v != null);
+        if (!rows.length) return null;
+        return {
+          i, x: x(weeks[i]), title: `Week of ${fmtDate(weeks[i])}`,
+          rows: rows.map((r) => ({ name: r.l.name, value: fmtPrice(r.p.v), color: r.l.color })),
+          dots: rows.map((r) => ({ y: y(r.p.v), color: r.l.color })),
+        };
+      },
+    });
+
+    // Greece's rank among the member states that reported that week.
+    const lt = dash.data('eu_latest');
+    const members = lt.status === 'ok' ? lt.data.filter((r) => r.fuel === key) : [];
+    const place = (col) => {
+      const have = members.filter((r) => r[col] !== '').sort((a, b) => Number(b[col]) - Number(a[col]));
+      const at = have.findIndex((r) => r.country === 'GR');
+      return at < 0 ? null : { n: have.length, rank: at + 1 };
+    };
+    const before = place('price_without_taxes');
+    const taxed = place('price_with_taxes');
+    const fallback = key === 'euro95' && fuel !== 'unleaded95' ? 'The bulletin has no 100 octane or Super, so this shows unleaded 95. ' : '';
+    rank.textContent = before && taxed
+      ? `${fallback}In the week of ${fmtDate(parseDay(members[0].date))}, Greece was the ${ordinal(before.rank)} dearest of ${before.n} EU countries before taxes and the ${ordinal(taxed.rank)} dearest with taxes.`
+      : fallback;
+  };
+
   // ---- tabs --------------------------------------------------------------------------------
   let page = location.hash.slice(1) === 'outlook' ? 'outlook' : 'prices';
   const tabs = [...document.querySelectorAll('.fp-tabs [role="tab"]')];
@@ -1541,6 +1649,7 @@ dash.calc('coverage', {
       drawTrend(p);
       drawPeriods(p);
       drawHistory(p);
+      drawEU(p);
       drawTable(p);
     }
   };
