@@ -39,8 +39,8 @@ RESOURCES = [
      [EU_SRC], {"country": "Two-letter country code; EU and EUR are the Commission's own EU and euro-area averages; UK only until it left the EU", "fuel": "euro95, diesel, heating_oil or lpg", "price_with_taxes": "EUR per litre, all duties and taxes included", "price_without_taxes": "EUR per litre, net of duties and taxes"}, None),
     ("eu_tax_rates", "data/eu/tax_rates.csv", "Every change of VAT, excise duty and other indirect taxes on 95, road diesel, heating gas oil and LPG in each EU country, from the European Commission's Weekly Oil Bulletin, with the date it came into force. Changes made here: excise and other taxes converted from per 1,000 litres to per litre; four of the six fuels kept; reshaped to one row per change (the source leaves a fuel's cell blank when its rate did not change). Excise and other taxes are in the currency the country used when the Commission recorded them, so Croatia (euro from 2023) and Bulgaria (from 2026) switch currency partway through; the per-component (bio/fossil) excise sheet is not included.",
      [EU_SRC], {"date": "Date the rate came into force", "country": "Two-letter country code (UK only until it left the EU)", "fuel": "euro95, diesel, heating_oil or lpg", "tax": "vat, excise or other_indirect", "value": "The rate: percent for VAT, an amount per litre for the others", "unit": "percent, or national currency per litre"}, None),
-    ("refinery_prices", "data/refinery/refinery_prices.csv", "Daily ex-refinery prices of ELPE and Motor Oil per product. 'mean' and 'mean_incl_vat' as published; see 'basis' for what each includes and the unit.",
-     REFINERY_SRC, {}, None),
+    ("refinery_prices", "data/refinery/refinery_prices.csv", "Daily ex-refinery prices of ELPE and Motor Oil per product. 'mean' and 'mean_incl_vat' as published; 'unit' and 'basis' are the source's Greek labels, and the last three columns say the same in plain terms.",
+     REFINERY_SRC, {"unit_code": "m3 (prices per cubic metre, 1,000 litres) or t (per tonne)", "taxes_included": "excise_not_vat: excise and levies included, VAT not; none: before all taxes", "eur_per_litre_incl_vat": "For per-cubic-metre products: the price per litre with excise and 24% VAT, comparable to the pump price. Blank for per-tonne products: the source gives no density to convert with."}, None),
     ("ecb_eurusd", "data/international/ecb_eurusd.csv", "ECB euro reference rate, US dollars per euro.",
      [ECB_SRC], {}, None),
     ("model_forecast", "data/model/forecast.csv", "Expected change of the pump price 7 and 14 days after the latest bulletin per area and fuel (EUR/L), with the model's backtest record since 2024: mean absolute error (mae_*), the error of assuming no change (mae_naive_*), and the share of days the direction was right (hit_*) and the share a 'same as last week' guess got right (hit_momentum_*).",
@@ -59,7 +59,7 @@ def main(root):
             header = next(csv.reader(fh))
         fields = []
         for col in header:
-            t = TYPES.get(col, "number" if col in FUEL_DOC or col.startswith(("change_", "mae_", "hit_", "share", "pump", "elpe", "motor_oil", "mean", "usd_per", "price_", "value")) else "string")
+            t = TYPES.get(col, "number" if col in FUEL_DOC or col.startswith(("change_", "mae_", "hit_", "share", "pump", "elpe", "motor_oil", "mean", "usd_per", "price_", "value", "eur_per")) else "string")
             field = {"name": col, "type": t}
             if col in docs:
                 field["description"] = docs[col]

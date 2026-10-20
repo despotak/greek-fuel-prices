@@ -132,7 +132,8 @@ def init(root, daily_csv, parse_log, pdf_dir):
     print(f"pump: {len(rows)} rows over {len(parsed)} days; missing days: {len(missing)}", file=sys.stderr)
 
 
-REFINERY_COLUMNS = ["date", "category", "product", "elpe", "motor_oil", "mean", "mean_incl_vat", "unit", "basis"]
+REFINERY_COLUMNS = ["date", "category", "product", "elpe", "motor_oil", "mean", "mean_incl_vat", "unit", "basis",
+                    "unit_code", "taxes_included", "eur_per_litre_incl_vat"]
 
 
 def refinery_backup(tmp):
@@ -171,7 +172,21 @@ def refinery_direct(known):
             category, unit, basis = meta.loc[product]
             vat = round(mean * (1 + REFINERY_VAT), 3) if mean is not None and "προ ΦΠΑ" in basis and "προ φόρων" not in basis else None
             rows.append([post["postDate"][:10], category, product, elpe, motor_oil, mean, vat, unit, basis])
-    return pd.DataFrame(rows, columns=REFINERY_COLUMNS)
+    return pd.DataFrame(rows, columns=REFINERY_COLUMNS[:9])  # the plain columns are derived after the merge
+
+
+def refinery_plain_columns(df):
+    """Say in plain columns what `unit` and `basis` say in Greek: the unit, which taxes the prices
+    include, and, for the per-cubic-metre products, the price per litre with every tax, comparable to
+    the pump. Per-tonne products (LPG, fuel oil, kerosene, asphalt) get no per-litre price: the source
+    gives no density to convert with."""
+    basis = df["basis"].fillna("")
+    df["unit_code"] = basis.map(lambda b: "m3" if "€/m3" in b else "t" if "€/μ.τ." in b else "")
+    df["taxes_included"] = basis.map(
+        lambda b: "excise_not_vat" if "συμπεριλ. φόρων" in b and "προ ΦΠΑ" in b else "none" if "προ φόρων" in b else "")
+    per_litre = pd.to_numeric(df["mean_incl_vat"], errors="coerce") / 1000
+    df["eur_per_litre_incl_vat"] = per_litre.where(df["unit_code"] == "m3").round(6)
+    return df
 
 
 def refinery(root, tmp):
@@ -200,6 +215,7 @@ def refinery(root, tmp):
     today = dt.date.today().isoformat()
     out = pd.concat(parts)
     out = out[out["date"] <= today].drop_duplicates(["date", "product"], keep="last").sort_values(["date", "product"])
+    out = refinery_plain_columns(out)
     path.parent.mkdir(parents=True, exist_ok=True)
     out[REFINERY_COLUMNS].to_csv(path, index=False, lineterminator="\n")
     print(f"refinery: {len(out)} rows, {out['date'].min()} .. {out['date'].max()}, from {' + '.join(used) or 'nothing new'}",

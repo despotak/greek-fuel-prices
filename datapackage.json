@@ -417,7 +417,7 @@
       "profile": "tabular-data-resource",
       "format": "csv",
       "encoding": "utf-8",
-      "description": "Daily ex-refinery prices of ELPE and Motor Oil per product. 'mean' and 'mean_incl_vat' as published; see 'basis' for what each includes and the unit.",
+      "description": "Daily ex-refinery prices of ELPE and Motor Oil per product. 'mean' and 'mean_incl_vat' as published; 'unit' and 'basis' are the source's Greek labels, and the last three columns say the same in plain terms.",
       "sources": [
         {
           "title": "Ministry price observatory, refinery prices (ELPE, Motor Oil)",
@@ -469,6 +469,21 @@
           {
             "name": "basis",
             "type": "string"
+          },
+          {
+            "name": "unit_code",
+            "type": "string",
+            "description": "m3 (prices per cubic metre, 1,000 litres) or t (per tonne)"
+          },
+          {
+            "name": "taxes_included",
+            "type": "string",
+            "description": "excise_not_vat: excise and levies included, VAT not; none: before all taxes"
+          },
+          {
+            "name": "eur_per_litre_incl_vat",
+            "type": "number",
+            "description": "For per-cubic-metre products: the price per litre with excise and 24% VAT, comparable to the pump price. Blank for per-tonne products: the source gives no density to convert with."
           }
         ],
         "missingValues": [
