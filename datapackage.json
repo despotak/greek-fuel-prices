@@ -1,7 +1,7 @@
 {
   "name": "greek-fuel-prices",
   "title": "Greek fuel prices by prefecture, daily",
-  "description": "Daily average pump prices for every Greek prefecture since March 2017, read from the Ministry of Development's daily bulletins, with Greek refinery prices and a model of how pump prices follow them. Updated every day.",
+  "description": "Daily average pump prices for every Greek prefecture since March 2017, read from the Ministry of Development's daily bulletins, with Greek refinery prices, the EU Weekly Oil Bulletin for comparison, and a model of how pump prices follow them. Updated every day.",
   "homepage": "https://despotak.github.io/greek-fuel-prices/",
   "profile": "tabular-data-package",
   "keywords": [
@@ -300,6 +300,58 @@
           ""
         ]
       }
+    },
+    {
+      "name": "eu_weekly_oil_bulletin",
+      "path": "data/eu/weekly_oil_bulletin.csv",
+      "profile": "tabular-data-resource",
+      "format": "csv",
+      "encoding": "utf-8",
+      "description": "Weekly consumer prices in every EU country with and without taxes, since January 2005, as published by the European Commission in its Weekly Oil Bulletin. Changes made here: prices converted from EUR per 1,000 litres to EUR per litre; four of the six fuels kept (Euro-super 95, road diesel, heating gas oil, LPG; the two fuel oil grades left out); reshaped to one row per week, country and fuel, leaving out weeks a country reported nothing for that fuel. The taxes are the difference between the two prices.",
+      "sources": [
+        {
+          "title": "European Commission, DG Energy, Weekly Oil Bulletin, price history (© European Union, CC BY 4.0)",
+          "path": "https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en"
+        }
+      ],
+      "schema": {
+        "fields": [
+          {
+            "name": "date",
+            "type": "date"
+          },
+          {
+            "name": "country",
+            "type": "string",
+            "description": "Two-letter country code; EU and EUR are the Commission's own EU and euro-area averages; UK only until it left the EU"
+          },
+          {
+            "name": "fuel",
+            "type": "string",
+            "description": "euro95, diesel, heating_oil or lpg"
+          },
+          {
+            "name": "price_with_taxes",
+            "type": "number",
+            "description": "EUR per litre, all duties and taxes included"
+          },
+          {
+            "name": "price_without_taxes",
+            "type": "number",
+            "description": "EUR per litre, net of duties and taxes"
+          }
+        ],
+        "missingValues": [
+          ""
+        ]
+      },
+      "licenses": [
+        {
+          "name": "CC-BY-4.0",
+          "path": "https://creativecommons.org/licenses/by/4.0/",
+          "title": "Creative Commons Attribution 4.0"
+        }
+      ]
     },
     {
       "name": "refinery_prices",

@@ -18,6 +18,7 @@ PUMP_SRC = {"title": "Ministry of Development, Fuel Price Observatory: daily pri
 REFINERY_SRC = [{"title": "Ministry price observatory, refinery prices (ELPE, Motor Oil)", "path": "https://oil.gge.gov.gr"},
                 {"title": "collected by greek-oil-refinery-prices (AGPL-3.0 code)", "path": "https://github.com/akosiaris/greek-oil-refinery-prices"}]
 ECB_SRC = {"title": "European Central Bank, euro reference exchange rate (USD)", "path": "https://data.ecb.europa.eu/data/datasets/EXR"}
+EU_SRC = {"title": "European Commission, DG Energy, Weekly Oil Bulletin, price history (© European Union, CC BY 4.0)", "path": "https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en"}
 CC_BY = [{"name": "CC-BY-4.0", "path": "https://creativecommons.org/licenses/by/4.0/", "title": "Creative Commons Attribution 4.0"}]
 
 RESOURCES = [
@@ -33,6 +34,8 @@ RESOURCES = [
      [PUMP_SRC], {}, None),
     ("accepted_anomalies", "data/pump/accepted_anomalies.csv", "Days whose large price jumps were checked against the bulletin and accepted as published.",
      [PUMP_SRC], {}, None),
+    ("eu_weekly_oil_bulletin", "data/eu/weekly_oil_bulletin.csv", "Weekly consumer prices in every EU country with and without taxes, since January 2005, as published by the European Commission in its Weekly Oil Bulletin. Changes made here: prices converted from EUR per 1,000 litres to EUR per litre; four of the six fuels kept (Euro-super 95, road diesel, heating gas oil, LPG; the two fuel oil grades left out); reshaped to one row per week, country and fuel, leaving out weeks a country reported nothing for that fuel. The taxes are the difference between the two prices.",
+     [EU_SRC], {"country": "Two-letter country code; EU and EUR are the Commission's own EU and euro-area averages; UK only until it left the EU", "fuel": "euro95, diesel, heating_oil or lpg", "price_with_taxes": "EUR per litre, all duties and taxes included", "price_without_taxes": "EUR per litre, net of duties and taxes"}, None),
     ("refinery_prices", "data/refinery/refinery_prices.csv", "Daily ex-refinery prices of ELPE and Motor Oil per product. 'mean' and 'mean_incl_vat' as published; see 'basis' for what each includes and the unit.",
      REFINERY_SRC, {}, None),
     ("ecb_eurusd", "data/international/ecb_eurusd.csv", "ECB euro reference rate, US dollars per euro.",
@@ -53,7 +56,7 @@ def main(root):
             header = next(csv.reader(fh))
         fields = []
         for col in header:
-            t = TYPES.get(col, "number" if col in FUEL_DOC or col.startswith(("change_", "mae_", "hit_", "share", "pump", "elpe", "motor_oil", "mean", "usd_per")) else "string")
+            t = TYPES.get(col, "number" if col in FUEL_DOC or col.startswith(("change_", "mae_", "hit_", "share", "pump", "elpe", "motor_oil", "mean", "usd_per", "price_")) else "string")
             field = {"name": col, "type": t}
             if col in docs:
                 field["description"] = docs[col]
@@ -61,7 +64,7 @@ def main(root):
         res = {"name": name, "path": paths if len(paths) > 1 else paths[0], "profile": "tabular-data-resource",
                "format": "csv", "encoding": "utf-8", "description": desc, "sources": sources,
                "schema": {"fields": fields, "missingValues": [""]}}
-        if name.startswith("model_"):
+        if name.startswith(("model_", "eu_")):
             res["licenses"] = CC_BY
         if fk:
             res["schema"]["foreignKeys"] = [{"fields": fk[0], "reference": {"resource": fk[1], "fields": fk[2]}}]
@@ -71,7 +74,7 @@ def main(root):
     pkg = {
         "name": "greek-fuel-prices",
         "title": "Greek fuel prices by prefecture, daily",
-        "description": "Daily average pump prices for every Greek prefecture since March 2017, read from the Ministry of Development's daily bulletins, with Greek refinery prices and a model of how pump prices follow them. Updated every day.",
+        "description": "Daily average pump prices for every Greek prefecture since March 2017, read from the Ministry of Development's daily bulletins, with Greek refinery prices, the EU Weekly Oil Bulletin for comparison, and a model of how pump prices follow them. Updated every day.",
         "homepage": "https://despotak.github.io/greek-fuel-prices/",
         "profile": "tabular-data-package",
         "keywords": ["fuel prices", "Greece", "heating oil", "diesel", "gasoline", "open data"],

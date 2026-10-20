@@ -31,6 +31,7 @@ MAX_STEP = 0.15  # EUR/L between consecutive bulletins, per area
 MAX_JUMPERS = 5  # areas allowed above MAX_STEP on one day for one fuel
 NATIONAL_WARN = 0.10  # largest national step since 2017: 0.069 (heating oil, March 2022), autogas glitch aside
 STALE_WARN, STALE_FAIL = 4, 10
+EU_PAIRS = {"euro95": "unleaded95", "diesel": "diesel", "heating_oil": "heating_oil", "lpg": "autogas"}
 
 
 def committed(root, rel):
@@ -99,10 +100,27 @@ def main(root):
                 warnings.append(f"{day} {f}: large steps {jumps[:6]}")
 
     for rel in ("data/model/forecast.csv", "data/model/passthrough_curve.csv", "data/refinery/refinery_prices.csv",
-                "data/international/ecb_eurusd.csv"):
+                "data/international/ecb_eurusd.csv", "data/eu/weekly_oil_bulletin.csv"):
         p = root / rel
         if not p.exists() or len(pd.read_csv(p)) == 0:
             errors.append(f"{rel} missing or empty")
+
+    # The EU Weekly Oil Bulletin carries Greece's national average for the Monday of each week: it has
+    # matched ours to the tenth of a cent on all but 11 of 474 shared Mondays since 2017. A recent
+    # disagreement points at a misread column on one side (a warning: the Commission revises figures).
+    eu_path = root / "data" / "eu" / "weekly_oil_bulletin.csv"
+    if eu_path.exists():
+        eu = pd.read_csv(eu_path, dtype={"date": str})
+        if (old_eu := committed(root, "data/eu/weekly_oil_bulletin.csv")) is not None and len(eu) < len(old_eu):
+            errors.append(f"data/eu/weekly_oil_bulletin.csv shrank from {len(old_eu)} to {len(eu)} rows")
+        recent = (pd.Timestamp(pump["date"].max()) - pd.Timedelta(days=60)).date().isoformat()
+        gr = eu[(eu["country"] == "GR") & (eu["date"] >= recent)]
+        national = pump[pump["area_id"] == "national"].set_index("date")
+        for f, ours in EU_PAIRS.items():
+            for _, r in gr[gr["fuel"] == f].iterrows():
+                ours_v = national[ours].get(r["date"]) if r["date"] in national.index else None
+                if pd.notna(ours_v) and pd.notna(r["price_with_taxes"]) and abs(ours_v - r["price_with_taxes"]) > 0.02:
+                    warnings.append(f"{r['date']} {ours}: EU bulletin says {r['price_with_taxes']}, our national is {ours_v}")
 
     print(f"validate: {len(pump)} pump rows, {pump['date'].nunique()} days, {len(new_days)} new ({', '.join(new_days[-5:])})", file=sys.stderr)
     for w in warnings:

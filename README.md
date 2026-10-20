@@ -22,6 +22,7 @@ All files are UTF-8 CSV, described in [`datapackage.json`](datapackage.json) ([F
 | `data/pump/accepted_anomalies.csv` | Days whose large price jumps were checked against the bulletin and accepted as published |
 | `data/refinery/refinery_prices.csv` | Daily ex-refinery prices of ELPE and Motor Oil per product; `basis` says what is included and the unit |
 | `data/international/ecb_eurusd.csv` | ECB euro reference rate (USD per EUR) |
+| `data/eu/weekly_oil_bulletin.csv` | The European Commission's Weekly Oil Bulletin since 2005: every EU country, the EU and euro-area averages, with and without taxes, in EUR per litre (95, diesel, heating oil, LPG). © European Union, CC BY 4.0; converted from EUR per 1,000 litres, fuel oil left out. Greece's figures match the daily bulletins' national average to the tenth of a cent on all but 11 of 474 shared Mondays, so `validate.py` warns when a recent week disagrees. |
 | `data/model/forecast.csv` | The two-week outlook per area and fuel, with its backtest record |
 | `data/model/passthrough_curve.csv` | How much of a price move reaches the refinery and the pump after 0–28 days |
 
@@ -39,7 +40,7 @@ A GitHub Actions workflow runs three times a day, at 07:17, 13:47 and 19:37 UTC 
    - Lists every bulletin fuelprices.gr publishes and downloads the ones the data does not have yet.
    - Parses and appends them, then deletes the PDFs.
    - A bulletin that cannot be read goes into `missing_days.csv` with the reason. A bulletin posted late is picked up on the next run.
-2. **Refinery prices and the ECB rate** are refreshed into `data/`. **EIA prices** are downloaded for the model and the dashboard only (see below).
+2. **Refinery prices, the ECB rate and the EU Weekly Oil Bulletin** are refreshed into `data/` (a failed EU download keeps the last good file). **EIA prices** are downloaded for the model and the dashboard only (see below).
 3. **The model** is refitted on all history and writes the outlook.
 4. **Validation gates** stop a bad day from being published (`scripts/validate.py`):
    - Every prefecture is present on each new day (a missing national average only warns: some bulletins leave it out).

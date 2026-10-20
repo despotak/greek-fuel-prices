@@ -36,6 +36,11 @@ STEO_SERIES = {"BREPUUS": ("brent", "Brent crude oil spot price", "USD/bbl"),
                "DSWHUUS_$": ("diesel", "US diesel fuel, refiner wholesale price", "USD/gal"),
                "MGWHUUS_$": ("gasoline", "US gasoline, refiner wholesale price", "USD/gal")}
 PUMP_COLUMNS = ["date", "area_id", *FUELS]
+# European Commission, Weekly Oil Bulletin: the full price history since 2005, one workbook. CC BY 4.0.
+EU_WOB_URL = ("https://energy.ec.europa.eu/document/download/906e60ca-8b6a-44e7-8589-652854d2fd3f_en"
+              "?filename=Weekly_Oil_Bulletin_Prices_History_maticni_4web.xlsx")
+# The workbook's fuel keys -> ours. Fuel oil (two industrial grades) is left out: no pump counterpart.
+EU_FUELS = {"euro95": "euro95", "diesel": "diesel", "heating_oil": "heating_oil", "LPG": "lpg"}
 
 
 def get(url, path):
@@ -149,6 +154,46 @@ def ecb(root, tmp):
     print(f"ecb: {len(out)} rows to {out['date'].max()}", file=sys.stderr)
 
 
+def eu_oil_bulletin(root, tmp):
+    """EU Weekly Oil Bulletin -> data/eu/weekly_oil_bulletin.csv, every country and the EU and euro-area
+    averages, in EUR per litre with and without taxes (the workbook gives EUR per 1,000 litres).
+
+    A failed download or an unexpected workbook keeps the committed file: this source is a weekly
+    extra, and a broken fetch must not block the daily pump data.
+    """
+    path = root / "data" / "eu" / "weekly_oil_bulletin.csv"
+    try:
+        wb = openpyxl.load_workbook(get(EU_WOB_URL, tmp / "eu_wob.xlsx"), read_only=True, data_only=True)
+        prices = {}
+        for sheet, kind in (("Prices with taxes", "with_tax"), ("Prices wo taxes", "wo_tax")):
+            rows = wb[sheet].iter_rows(values_only=True)
+            header = next(rows)
+            cols = {}
+            for i, h in enumerate(header):
+                if isinstance(h, str) and (m := re.fullmatch(rf"([A-Z]+)_price_{kind}_(\w+)", h)) and m[2] in EU_FUELS:
+                    cols[i] = (m[1], EU_FUELS[m[2]])
+            if len(cols) < 100:
+                raise ValueError(f"sheet {sheet!r} has {len(cols)} price columns, expected well over 100")
+            for r in rows:
+                if not hasattr(r[0], "date"):
+                    continue
+                day = r[0].date().isoformat()
+                for i, (country, fuel) in cols.items():
+                    if isinstance(r[i], (int, float)) and r[i] > 0:
+                        prices.setdefault((day, country, fuel), {})[kind] = round(r[i] / 1000, 6)
+    except (OSError, KeyError, ValueError, StopIteration) as exc:
+        print(f"eu weekly oil bulletin: NOT refreshed, keeping {path.name}: {exc}", file=sys.stderr)
+        return
+    out = sorted([d, c, f, v.get("with_tax", ""), v.get("wo_tax", "")] for (d, c, f), v in prices.items())
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh, lineterminator="\n")
+        w.writerow(["date", "country", "fuel", "price_with_taxes", "price_without_taxes"])
+        w.writerows(out)
+    print(f"eu weekly oil bulletin: {len(out)} rows, {out[0][0]} .. {out[-1][0]}, "
+          f"{len({r[1] for r in out})} countries/aggregates", file=sys.stderr)
+
+
 def eia(root):
     for s in EIA_SERIES:
         get(EIA_XLS.format(s), root / "build" / "eia" / f"{s}.xls")
@@ -184,6 +229,7 @@ def daily(root):
     tmp = root / "build" / "tmp"
     refinery(root, tmp)
     ecb(root, tmp)
+    eu_oil_bulletin(root, tmp)
     eia(root)
 
 
