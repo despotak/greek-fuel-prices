@@ -34,6 +34,8 @@ Start with [`llms.txt`](https://despotak.github.io/greek-fuel-prices/llms.txt). 
 - `data/agents/latest.json`, the newest bulletin day for every area and fuel, and `data/agents/manifest.json`, which says how fresh each source is.
 - Every CSV above at the same path as in this repository, so `datapackage.json` resolves on the site.
 
+The Parquet and JSON files are built from the CSVs on every deploy and live only on the site, not in this repository: a binary file rewritten every day would add close to a gigabyte a year to the git history.
+
 There is no API: the files are the API.
 
 Notes on the pump data:
