@@ -116,6 +116,8 @@ window.DASH_PARAMS = { area: 'Αττική', fuel: 'heating_oil', range: 'all' }
   #chain-chart { min-height: 320px; }
   #lag-chart { min-height: 260px; }
   #steo-chart { min-height: 280px; }
+  .fp-markets { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: var(--cds-gap-md); }
+  .fp-markets > div { min-height: 190px; min-width: 0; }
   .fp [data-dash-source-state=refreshing] { opacity: 0.5; transition: opacity var(--cds-dur-slow); }
   .fp [data-dash-source-state=empty] { color: transparent; }
   .fp-foot a { color: var(--color-fg-secondary); }
@@ -305,9 +307,15 @@ window.DASH_PARAMS = { area: 'Αττική', fuel: 'heating_oil', range: 'all' }
       <div class="fp-chart" id="lag-chart" data-source="passthrough_curve" tabindex="0" aria-label="Share of a price move passed on by day"></div>
     </section>
 
+    <section class="fp-card" id="markets">
+      <h2 class="fp-card-title">World markets now</h2>
+      <p class="fp-note">Live prices from TradingView: broker contracts (CFDs) that follow the front-month futures. London gas oil is the benchmark European diesel and heating oil are priced from. They are shown by TradingView, not stored or republished here, and the free widgets offer no prices for later delivery months. TradingView's scripts load only when this tab is opened.</p>
+      <div class="fp-markets" id="markets-grid"></div>
+    </section>
+
     <section class="fp-card" id="steo">
       <h2 class="fp-card-title">EIA's monthly outlook</h2>
-      <p class="fp-note">Brent crude and US wholesale diesel and gasoline as published by the US Energy Information Administration in its <span class="dash-skeleton" data-source="steo" data-field="vintage" data-row="0" data-kind="text">—</span> Short-Term Energy Outlook, in euro per litre at the ECB rate of <span class="dash-skeleton" data-source="steo" data-field="eurusd_date" data-row="0" data-kind="date">—</span>. The shaded months are EIA's forecast: one agency's view, revised every month, not a market price. Exchange futures would show the market's view, but their prices are licensed and cannot be republished here.</p>
+      <p class="fp-note">Brent crude and US wholesale diesel and gasoline as published by the US Energy Information Administration in its <span class="dash-skeleton" data-source="steo" data-field="vintage" data-row="0" data-kind="text">—</span> Short-Term Energy Outlook, in euro per litre at the ECB rate of <span class="dash-skeleton" data-source="steo" data-field="eurusd_date" data-row="0" data-kind="date">—</span>. The shaded months are EIA's forecast: one agency's view, revised every month, not a market price. The card above shows the market's front month live; exchange prices for later delivery months are licensed and cannot be shown here.</p>
       <div class="fp-legend" id="steo-legend"></div>
       <div class="fp-chart" id="steo-chart" data-source="steo" tabindex="0" aria-label="EIA monthly prices and forecast"></div>
     </section>
@@ -1478,6 +1486,33 @@ dash.calc('coverage', {
     });
   };
 
+  // ---- live market widgets (TradingView; loaded the first time the Outlook tab is shown) ------
+  // Exchange futures are blocked in TradingView's free widgets; these broker CFDs track the front month.
+  const MARKETS = [
+    ['CAPITALCOM:GASOIL', 'London gas oil'], ['CAPITALCOM:HEATINGOIL', 'NY Harbor heating oil'],
+    ['CAPITALCOM:GASOLINE', 'Gasoline (RBOB)'], ['OANDA:BCOUSD', 'Brent crude'],
+  ];
+  let marketsMounted = false;
+  const mountMarkets = () => {
+    if (marketsMounted) return;
+    marketsMounted = true;
+    const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+    document.getElementById('markets-grid').replaceChildren(...MARKETS.map(([symbol]) => {
+      const cell = document.createElement('div');
+      const wrap = document.createElement('div');
+      wrap.className = 'tradingview-widget-container';
+      const inner = document.createElement('div');
+      inner.className = 'tradingview-widget-container__widget';
+      const s = document.createElement('script');
+      s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
+      s.async = true;
+      s.textContent = JSON.stringify({ symbol, width: '100%', height: 190, locale: 'en', dateRange: '12M', colorTheme: dark ? 'dark' : 'light', isTransparent: true, autosize: false });
+      wrap.append(inner, s);
+      cell.append(wrap);
+      return cell;
+    }));
+  };
+
   // ---- tabs --------------------------------------------------------------------------------
   let page = location.hash.slice(1) === 'outlook' ? 'outlook' : 'prices';
   const tabs = [...document.querySelectorAll('.fp-tabs [role="tab"]')];
@@ -1497,6 +1532,7 @@ dash.calc('coverage', {
     syncControls(p);
     fillMarks(p);
     if (page === 'outlook') {
+      mountMarkets();
       drawOutlookTable(p);
       drawChain(p);
       drawLag(p);
