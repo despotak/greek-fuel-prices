@@ -27,6 +27,15 @@ All files are UTF-8 CSV, described in [`datapackage.json`](datapackage.json) ([F
 | `data/model/forecast.csv` | The two-week outlook per area and fuel, with its backtest record |
 | `data/model/passthrough_curve.csv` | How much of a price move reaches the refinery and the pump after 0–28 days |
 
+### For programs and AI agents
+
+Start with [`llms.txt`](https://despotak.github.io/greek-fuel-prices/llms.txt). The site also serves:
+- `data/agents/pump_prices.parquet`, `refinery_prices.parquet` and `eu_weekly_oil_bulletin.parquet`: long tables with real date columns and units in the column names. DuckDB and others can query them over HTTP without downloading them whole.
+- `data/agents/latest.json`, the newest bulletin day for every area and fuel, and `data/agents/manifest.json`, which says how fresh each source is.
+- Every CSV above at the same path as in this repository, so `datapackage.json` resolves on the site.
+
+There is no API: the files are the API.
+
 Notes on the pump data:
 - **Heating oil** is "Diesel Θέρμανσης Κατ' οίκον", delivered to the home. It is reported only **from 15 October to 30 April**, the season with reduced excise duty, so it is empty every summer.
 - **Super** was sold by a handful of stations by late 2021 (5 nationwide in November 2021). Its averages say little, and the bulletins stopped listing it in 2022.

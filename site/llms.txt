@@ -1,0 +1,48 @@
+# Greek fuel prices
+
+> Daily average pump prices for every Greek prefecture since March 2017 (unleaded 95 and 100, diesel, autogas, heating oil, Super until 2022), Greek refinery prices, the EU Weekly Oil Bulletin for all EU countries since 2005, and a two-week price outlook. Static files, rebuilt three times a day from https://github.com/despotak/greek-fuel-prices . There is no API: the files are the API. Parquet files can be queried over HTTP without downloading them whole (DuckDB, Polars, pandas with pyarrow).
+
+Base URL: https://despotak.github.io/greek-fuel-prices/
+
+## Start here
+
+- [data/agents/manifest.json](data/agents/manifest.json): when each source was last refreshed: `newest_date`, `rows`, `stale_after_days`, `generated_at` (UTC). Check it before answering "what is the price now".
+- [data/agents/latest.json](data/agents/latest.json): the newest bulletin day, every area and fuel, EUR per litre with 24% VAT, with Greek and English area names.
+
+## Tables (Parquet, long format, `date` is a real date)
+
+- [data/agents/pump_prices.parquet](data/agents/pump_prices.parquet): `date, area_id, fuel, eur_per_litre`. One row per day, area and fuel that has a price. `area_id` is `national` or a prefecture (see data/areas.csv for Greek and English names). `fuel` is one of unleaded95, unleaded100, super, diesel, autogas, heating_oil. Average retail price including 24% VAT, as printed in the Ministry of Development's daily bulletin.
+- [data/agents/refinery_prices.parquet](data/agents/refinery_prices.parquet): `date, category, product, elpe_eur_per_unit, motor_oil_eur_per_unit, mean_eur_per_unit, mean_incl_vat_eur_per_unit, unit, basis`. Ex-refinery prices of the two Greek refiners. Units are per cubic metre (1,000 litres) or per tonne, see `unit`; `basis` says which taxes are included (Greek text from the source). Divide per-m3 values by 1,000 for EUR per litre.
+- [data/agents/eu_weekly_oil_bulletin.parquet](data/agents/eu_weekly_oil_bulletin.parquet): `date, country, fuel, eur_per_litre_with_taxes, eur_per_litre_without_taxes`. Weekly (Mondays) since 2005, every EU country plus `EU` and `EUR` (euro area) averages, `UK` until it left. Fuels: euro95, diesel, heating_oil, lpg.
+
+## Same data as CSV, with the Frictionless descriptor
+
+- [datapackage.json](datapackage.json): every CSV resource with field types and descriptions; paths resolve on this site.
+- data/pump/YYYY.csv (wide, one file per year), data/pump/transcribed.csv, data/pump/day_notes.csv, data/pump/missing_days.csv, data/refinery/refinery_prices.csv, data/eu/weekly_oil_bulletin.csv, data/eu/tax_rates.csv (every VAT, excise and other-tax change per EU country and fuel), data/international/ecb_eurusd.csv, data/model/forecast.csv (7 and 14-day outlook per area and fuel, with its backtest error).
+
+## Caveats that change answers
+
+- Heating oil is sold at its reduced excise only from 15 October to 30 April; outside that window it has no price in the daily data.
+- The national average is the bulletin's own, weighted by sales. Five bulletins left it out (2021-05-09, 2022-07-11, 2022-08-09, 2023-05-22, 2026-07-23); it is blank, never rebuilt.
+- Super had a handful of stations by late 2021; its averages say little, and the bulletins dropped it in 2022.
+- Days with no data and why: data/pump/missing_days.csv (106 days without a bulletin, 6 mislabelled copies, 2 platform-fault notices). Thirteen scanned or broken bulletins were typed in by hand and checked: data/pump/transcribed.csv.
+- In the EU bulletin, Greece's heating-oil price is carried unchanged from May to mid-October; treat those weeks as missing. Greece reports no LPG to the EU.
+- EU excise and other taxes (data/eu/tax_rates.csv) are in the currency the country used at the time: Bulgaria switches from lev to euro in 2026, Croatia in 2023.
+
+## Examples
+
+```sql
+-- DuckDB: heating oil in Attica, this season
+SELECT date, eur_per_litre FROM 'https://despotak.github.io/greek-fuel-prices/data/agents/pump_prices.parquet'
+WHERE area_id = 'attiki' AND fuel = 'heating_oil' AND date >= DATE '2026-10-15' ORDER BY date;
+
+-- DuckDB: Greece against the EU average before taxes, diesel, last 8 weeks
+SELECT date, country, eur_per_litre_without_taxes FROM 'https://despotak.github.io/greek-fuel-prices/data/agents/eu_weekly_oil_bulletin.parquet'
+WHERE fuel = 'diesel' AND country IN ('GR', 'EU') ORDER BY date DESC LIMIT 16;
+```
+
+`curl -s https://despotak.github.io/greek-fuel-prices/data/agents/latest.json`
+
+## Licences
+
+Pump and refinery prices: Ministry of Development data, credit the source (fuelprices.gr, oil.gge.gov.gr). EU Weekly Oil Bulletin and tax rates: © European Union, CC BY 4.0, converted to EUR per litre. Model outputs and the hand transcriptions: CC BY 4.0. Code: MIT.
