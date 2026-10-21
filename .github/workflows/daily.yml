@@ -1,13 +1,11 @@
 name: daily
 
 on:
-  # The bulletin for day D is posted on the morning of D+1. GitHub delays scheduled runs under load and
-  # sometimes drops them, worst at the top of the hour, so three off-the-hour runs a day; a run with
-  # nothing new commits nothing and only refreshes the site.
+  # The bulletin for day D is posted on the morning of D+1, refinery prices on working days. GitHub
+  # delays scheduled runs by hours and drops some, so every hour, off the top of it: a run with nothing
+  # new commits nothing, and a missed slot then costs an hour, not a day.
   schedule:
-    - cron: "17 7 * * *"
-    - cron: "47 13 * * *"
-    - cron: "37 19 * * *"
+    - cron: "17 * * * *"
   workflow_dispatch:
   push:
     branches: [main]

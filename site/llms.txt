@@ -1,6 +1,6 @@
 # Greek fuel prices
 
-> Daily average pump prices for every Greek prefecture since March 2017 (unleaded 95 and 100, diesel, autogas, heating oil, Super until 2022), Greek refinery prices, the EU Weekly Oil Bulletin for all EU countries since 2005, and a two-week price outlook. Static files, rebuilt three times a day from https://github.com/despotak/greek-fuel-prices . There is no API: the files are the API. Parquet files can be queried over HTTP without downloading them whole (DuckDB, Polars, pandas with pyarrow).
+> Daily average pump prices for every Greek prefecture since March 2017 (unleaded 95 and 100, diesel, autogas, heating oil, Super until 2022), Greek refinery prices, the EU Weekly Oil Bulletin for all EU countries since 2005, and a two-week price outlook. Static files, rebuilt every hour from https://github.com/despotak/greek-fuel-prices . There is no API: the files are the API. Parquet files can be queried over HTTP without downloading them whole (DuckDB, Polars, pandas with pyarrow).
 
 Base URL: https://despotak.github.io/greek-fuel-prices/
 

@@ -46,7 +46,7 @@ Notes on the pump data:
 
 ## How it updates
 
-A GitHub Actions workflow runs three times a day, at 07:17, 13:47 and 19:37 UTC (`.github/workflows/daily.yml`). GitHub delays or drops scheduled runs when it is busy, so one is not enough; a run with nothing new commits nothing.
+A GitHub Actions workflow runs every hour, at 17 minutes past (`.github/workflows/daily.yml`). GitHub delays scheduled runs by hours and drops some, so a few a day are not enough; a run with nothing new commits nothing.
 
 1. **New bulletins.**
    - Lists every bulletin fuelprices.gr publishes and downloads the ones the data does not have yet.

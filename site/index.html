@@ -12,7 +12,7 @@
   "@context": "https://schema.org",
   "@type": "Dataset",
   "name": "Greek fuel prices by prefecture, daily",
-  "description": "Daily average pump prices for every Greek prefecture since March 2017 (unleaded 95 and 100, diesel, autogas, heating oil), Greek refinery prices, the EU Weekly Oil Bulletin with tax rates for every EU country since 2005, and a two-week outlook. Rebuilt three times a day. For programs and AI agents, start at llms.txt.",
+  "description": "Daily average pump prices for every Greek prefecture since March 2017 (unleaded 95 and 100, diesel, autogas, heating oil), Greek refinery prices, the EU Weekly Oil Bulletin with tax rates for every EU country since 2005, and a two-week outlook. Rebuilt every hour. For programs and AI agents, start at llms.txt.",
   "url": "https://despotak.github.io/greek-fuel-prices/",
   "sameAs": "https://github.com/despotak/greek-fuel-prices",
   "creator": {"@type": "Person", "name": "Christos Despotakis", "url": "https://github.com/despotak"},
@@ -365,7 +365,7 @@ window.DASH_PARAMS = { area: 'Αττική', fuel: 'heating_oil', range: 'all', 
     </section>
   </div>
 
-  <footer class="fp-note fp-foot" id="site-foot">Latest bulletin: <span class="dash-skeleton" data-source="latest" data-field="date" data-row="0" data-kind="date">—</span>. Rebuilt three times a day from fuelprices.gr, oil.gge.gov.gr, the European Commission, the ECB and the US EIA. Data and code: <a href="https://github.com/despotak/greek-fuel-prices">github.com/despotak/greek-fuel-prices</a> · <a href="datapackage.json">datapackage.json</a> · For programs and AI agents: <a href="llms.txt">llms.txt</a></footer>
+  <footer class="fp-note fp-foot" id="site-foot">Latest bulletin: <span class="dash-skeleton" data-source="latest" data-field="date" data-row="0" data-kind="date">—</span>. Rebuilt every hour from fuelprices.gr, oil.gge.gov.gr, the European Commission, the ECB and the US EIA. Data and code: <a href="https://github.com/despotak/greek-fuel-prices">github.com/despotak/greek-fuel-prices</a> · <a href="datapackage.json">datapackage.json</a> · For programs and AI agents: <a href="llms.txt">llms.txt</a></footer>
 </div>
 
 <script>
