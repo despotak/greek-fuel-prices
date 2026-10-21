@@ -5562,9 +5562,6 @@ date,country,fuel,tax,value,unit
 2026-07-06,SE,euro95,excise,1.57,national currency per litre
 2026-07-13,PT,diesel,excise,0.31925,national currency per litre
 2026-07-13,PT,euro95,excise,0.4511,national currency per litre
-2026-07-20,HU,diesel,excise,131.28,national currency per litre
-2026-07-20,HU,euro95,excise,142.55,national currency per litre
-2026-07-20,HU,heating_oil,excise,131.28,national currency per litre
 2026-07-20,PT,diesel,excise,0.30147,national currency per litre
 2026-07-20,PT,euro95,excise,0.4511,national currency per litre
 2026-07-27,CZ,diesel,excise,9.95,national currency per litre
@@ -5610,9 +5607,6 @@ date,country,fuel,tax,value,unit
 2026-09-21,PT,euro95,excise,0.4233,national currency per litre
 2026-09-21,RO,diesel,excise,2.24343,national currency per litre
 2026-09-22,HR,diesel,excise,0.23,national currency per litre
-2026-09-28,HU,diesel,excise,128.28,national currency per litre
-2026-09-28,HU,euro95,excise,139.55,national currency per litre
-2026-09-28,HU,heating_oil,excise,128.28,national currency per litre
 2026-09-28,PT,diesel,excise,0.26131,national currency per litre
 2026-09-28,PT,euro95,excise,0.42409,national currency per litre
 2026-10-01,DE,diesel,excise,0.33,national currency per litre
@@ -5634,3 +5628,5 @@ date,country,fuel,tax,value,unit
 2026-10-12,ES,euro95,excise,0.27269,national currency per litre
 2026-10-12,PT,diesel,excise,0.26513,national currency per litre
 2026-10-12,PT,euro95,excise,0.41948,national currency per litre
+2026-10-19,PT,diesel,excise,0.25949,national currency per litre
+2026-10-19,PT,euro95,excise,0.42562,national currency per litre
