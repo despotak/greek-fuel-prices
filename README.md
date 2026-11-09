@@ -52,7 +52,7 @@ A GitHub Actions workflow runs every hour, at 17 minutes past (`.github/workflow
    - Lists every bulletin fuelprices.gr publishes and downloads the ones the data does not have yet.
    - Parses and appends them, then deletes the PDFs.
    - A bulletin that cannot be read goes into `missing_days.csv` with the reason. A bulletin posted late is picked up on the next run.
-2. **Refinery prices, the ECB rate and the EU Weekly Oil Bulletin** are refreshed into `data/` (a failed EU download keeps the last good file). **EIA prices** are downloaded for the model and the dashboard only (see below).
+2. **Refinery prices, the ECB rate and the EU Weekly Oil Bulletin** are refreshed into `data/` (a failed ECB or EU download keeps the last good file). **EIA prices** are downloaded for the model and the dashboard only (see below).
 3. **The model** is refitted on all history and writes the outlook.
 4. **Validation gates** stop a bad day from being published (`scripts/validate.py`):
    - Every prefecture is present on each new day (a missing national average only warns: some bulletins leave it out).
