@@ -18,6 +18,9 @@ import json
 import pathlib
 import re
 import sys
+import time
+import urllib.error
+import urllib.parse
 import urllib.request
 
 import openpyxl
@@ -46,12 +49,23 @@ EU_WOB_URL = ("https://energy.ec.europa.eu/document/download/906e60ca-8b6a-44e7-
 EU_FUELS = {"euro95": "euro95", "diesel": "diesel", "heating_oil": "heating_oil", "LPG": "lpg"}
 
 
-def get(url, path):
+def get(url, path, tries=3):
+    """Download url to path. A server error (5xx, 429) is retried after 10 s and 30 s: the ECB's and
+    EIA's APIs throw the odd one, and one unretried error fails the whole run."""
     path = pathlib.Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     req = urllib.request.Request(url, headers=UA)
-    with urllib.request.urlopen(req, timeout=120) as resp, open(path, "wb") as fh:
-        fh.write(resp.read())
+    for attempt in range(tries):
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                body = resp.read()
+            break
+        except urllib.error.HTTPError as exc:
+            if attempt == tries - 1 or not (exc.code == 429 or exc.code >= 500):
+                raise
+            print(f"{urllib.parse.urlsplit(url).netloc}: HTTP {exc.code}, retrying", file=sys.stderr)
+            time.sleep(10 * 3 ** attempt)
+    path.write_bytes(body)
     return path
 
 
@@ -223,9 +237,20 @@ def refinery(root, tmp):
 
 
 def ecb(root, tmp):
-    raw = pd.read_csv(get(ECB_URL, tmp / "ecb.csv"), usecols=["TIME_PERIOD", "OBS_VALUE"])
-    out = raw.rename(columns={"TIME_PERIOD": "date", "OBS_VALUE": "usd_per_eur"}).sort_values("date")
+    """ECB euro reference rate -> data/international/ecb_eurusd.csv.
+
+    The ECB's data API has outages lasting hours (HTTP 500, 504). One keeps the committed file, so
+    the day's bulletin still ships; validate.py warns if the rate goes stale.
+    """
     path = root / "data" / "international" / "ecb_eurusd.csv"
+    try:
+        raw = pd.read_csv(get(ECB_URL, tmp / "ecb.csv"), usecols=["TIME_PERIOD", "OBS_VALUE"])
+        if raw.empty:
+            raise ValueError("no rows")
+    except (OSError, ValueError) as exc:
+        print(f"ecb: NOT refreshed, keeping {path.name}: {exc}", file=sys.stderr)
+        return
+    out = raw.rename(columns={"TIME_PERIOD": "date", "OBS_VALUE": "usd_per_eur"}).sort_values("date")
     path.parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(path, index=False, lineterminator="\n")
     print(f"ecb: {len(out)} rows to {out['date'].max()}", file=sys.stderr)

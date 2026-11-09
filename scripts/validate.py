@@ -33,8 +33,9 @@ MAX_JUMPERS = 5  # areas allowed above MAX_STEP on one day for one fuel
 NATIONAL_WARN = 0.10  # largest national step since 2017: 0.069 (heating oil, March 2022), autogas glitch aside
 STALE_WARN, STALE_FAIL = 4, 10
 # Refinery prices are posted every working day (a weekend in one post on Monday; Easter can add two
-# days); the EU bulletin weekly, for Monday, published later that week.
-REFINERY_STALE, EU_STALE = 5, 16
+# days); the EU bulletin weekly, for Monday, published later that week; the ECB rate every TARGET
+# working day (Easter leaves a gap of five days).
+REFINERY_STALE, EU_STALE, ECB_STALE = 5, 16, 7
 EU_PAIRS = {"euro95": "unleaded95", "diesel": "diesel", "heating_oil": "heating_oil", "lpg": "autogas"}
 
 
@@ -128,7 +129,8 @@ def main(root):
                     warnings.append(f"{r['date']} {ours}: EU bulletin says {r['price_with_taxes']}, our national is {ours_v}")
 
     # Sources that refresh themselves can go quiet without failing: a stale file is the only symptom.
-    for rel, max_age in (("data/refinery/refinery_prices.csv", REFINERY_STALE), ("data/eu/weekly_oil_bulletin.csv", EU_STALE)):
+    for rel, max_age in (("data/refinery/refinery_prices.csv", REFINERY_STALE), ("data/eu/weekly_oil_bulletin.csv", EU_STALE),
+                         ("data/international/ecb_eurusd.csv", ECB_STALE)):
         p = root / rel
         if p.exists():
             newest = pd.read_csv(p, usecols=["date"], dtype=str)["date"].max()
