@@ -6,11 +6,13 @@ append it to data/pump/YYYY.csv, and delete the PDF. A bulletin that cannot be r
 data/pump/missing_days.csv with the reason, so it is not retried every day.
 
 Usage: uv run --script update_bulletins.py <root>
-Exit status 1 only when the site's index cannot be read (the run should go red).
+Exit status 1 (the run should go red) when the site's index cannot be read, or when a new bulletin
+is waiting and pdftotext is not installed.
 """
 import csv
 import pathlib
 import re
+import shutil
 import sys
 import tempfile
 import time
@@ -88,6 +90,11 @@ def main(root):
     print(f"index lists {len(listed)} bulletins; held {len(have)}; recorded missing {len(missing)}; new {len(todo)}", file=sys.stderr)
     if not todo:
         return 0
+    if shutil.which("pdftotext") is None:
+        # The workflow lets a failed install pass, since most runs have nothing to parse. Without
+        # pdftotext every bulletin would fail to read and land in missing_days.csv for good.
+        print(f"pdftotext is not installed: {len(todo)} new bulletins left for the next run", file=sys.stderr)
+        return 1
     # A mislabelled file may be filed under the day its body names, unless that day already has data
     # or its own file is about to be parsed in this run.
     taken = have | set(todo)

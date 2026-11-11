@@ -32,7 +32,10 @@ jobs:
 
       - uses: astral-sh/setup-uv@v5
 
+      # Only a new bulletin needs pdftotext, and the runner sometimes cannot reach the Ubuntu mirror:
+      # a failed install lets the run go on, and update_bulletins.py stops if a bulletin is waiting.
       - name: Install pdftotext
+        continue-on-error: true
         run: sudo apt-get update -q && sudo apt-get install -y -q poppler-utils
 
       - name: New bulletins (download, parse, append, delete)
