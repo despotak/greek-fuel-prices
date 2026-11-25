@@ -5648,3 +5648,7 @@ date,country,fuel,tax,value,unit
 2026-11-10,IT,diesel,excise,0.6329,national currency per litre
 2026-11-16,PT,diesel,excise,0.27979,national currency per litre
 2026-11-16,PT,euro95,excise,0.45995,national currency per litre
+2026-11-17,HR,diesel,excise,0.29,national currency per litre
+2026-11-17,HR,euro95,excise,0.45731,national currency per litre
+2026-11-23,PT,diesel,excise,0.28808,national currency per litre
+2026-11-23,PT,euro95,excise,0.46785,national currency per litre
